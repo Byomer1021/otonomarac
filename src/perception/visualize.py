@@ -105,6 +105,60 @@ def _text_color_for(bg: tuple[int, int, int]) -> tuple[int, int, int]:
     return (0, 0, 0) if luminance > 140 else (255, 255, 255)
 
 
+def draw_trails(
+    image: np.ndarray,
+    trails: dict[int, list[tuple[int, float, float]]],
+    classes: dict[int, int] | None = None,
+    *,
+    max_thickness: int = 3,
+    max_gap: int = 2,
+) -> np.ndarray:
+    """Takip edilen nesnelerin gecmis zemin temas noktalarini cizgi olarak cizer.
+
+    Iz, eskiden yeniye dogru kalinlasir; boylece hareket yonu tek bakista
+    okunur ve durgun nesnelerin izi nokta gibi kalir.
+
+    Ardisik iki nokta arasinda `max_gap`'ten fazla kare varsa cizgi kesilir.
+    Bu onemli: bir iz okluzyon yuzunden kaybolup baska bir noktada geri
+    geldiginde, aradaki bosluk duz cizgiyle doldurulursa nesnenin hic
+    gitmedigi bir yol cizilmis olur - hata analizinde bu, gercek bir kimlik
+    atlamasiyla karistirilir.
+
+    Args:
+        image: Uzerine cizilecek kare.
+        trails: iz kimligi -> (kare_no, x, y) listesi, eskiden yeniye sirali.
+        classes: iz kimligi -> sinif id'si. Verilirse iz nesnenin sinif
+            renginde cizilir; verilmezse notr gri kullanilir.
+        max_thickness: En yeni segmentin kalinligi.
+        max_gap: Bu kadar kareye kadar olan boslukta cizgi surdurulur.
+    """
+    for track_id, points in trails.items():
+        if len(points) < 2:
+            continue
+
+        color = class_color(classes[track_id]) if classes and track_id in classes else _DEFAULT_COLOR
+        span = len(points) - 1
+
+        for i in range(span):
+            frame_a, xa, ya = points[i]
+            frame_b, xb, yb = points[i + 1]
+            if frame_b - frame_a > max_gap:
+                continue
+
+            # Segment ne kadar yeniyse o kadar kalin.
+            thickness = max(1, int(round(max_thickness * (i + 1) / span)))
+            cv2.line(
+                image,
+                (int(round(xa)), int(round(ya))),
+                (int(round(xb)), int(round(yb))),
+                color,
+                thickness,
+                cv2.LINE_AA,
+            )
+
+    return image
+
+
 def draw_hud(
     image: np.ndarray,
     lines: list[str],

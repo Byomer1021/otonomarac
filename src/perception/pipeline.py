@@ -15,9 +15,10 @@ from tqdm import tqdm
 
 from .config import Config
 from .detection import Detection, YOLODetector
+from .tracking import ObjectTracker
 from .utils import Profiler, describe_device
 from .video_io import Frame, VideoReader, VideoWriter
-from .visualize import draw_detections, draw_hud
+from .visualize import draw_detections, draw_hud, draw_trails
 
 
 @dataclass
@@ -25,9 +26,19 @@ class FrameResult:
     """Tek bir karenin isleme sonucu."""
 
     frame: Frame
+    #: Tespit katmaninin ham ciktisi
     detections: list[Detection] = field(default_factory=list)
+    #: Kimlik atanmis nesneler. Takip kapaliysa `detections` ile aynidir.
+    tracked: list[Detection] = field(default_factory=list)
+    #: iz kimligi -> gecmis zemin temas noktalari
+    trails: dict[int, list[tuple[float, float]]] = field(default_factory=dict)
     #: Cizim yapilmis kare (gorsellestirme kapaliysa None)
     rendered: np.ndarray | None = None
+
+    @property
+    def objects(self) -> list[Detection]:
+        """Sonraki katmanlarin uzerinde calisacagi nesne listesi."""
+        return self.tracked or self.detections
 
 
 class PerceptionPipeline:
@@ -35,8 +46,13 @@ class PerceptionPipeline:
 
     def __init__(self, config: Config | None = None) -> None:
         self.config = config or Config()
+
+        for warning in self.config.validate():
+            print(f"UYARI: {warning}\n")
+
         self.profiler = Profiler()
         self.detector = YOLODetector(self.config.detection)
+        self.tracker = ObjectTracker(self.config.tracking) if self.config.tracking.enabled else None
 
     @property
     def device_label(self) -> str:
@@ -47,26 +63,68 @@ class PerceptionPipeline:
         with self.profiler.stage("tespit"):
             detections = self.detector.detect(frame.image)
 
-        return FrameResult(frame=frame, detections=detections)
+        result = FrameResult(frame=frame, detections=detections)
+
+        if self.tracker is not None:
+            with self.profiler.stage("takip"):
+                result.tracked = self.tracker.update(detections, frame.index)
+                result.trails = self.tracker.active_trails(result.tracked)
+
+        return result
 
     def render(self, result: FrameResult, fps: float | None = None) -> np.ndarray:
         """Sonucu kare uzerine cizer ve cizilmis kareyi dondurur."""
         with self.profiler.stage("cizim"):
             canvas = result.frame.image.copy()
-            draw_detections(canvas, result.detections, self.config.visualize)
+            objects = result.objects
+
+            # Izler kutulardan once cizilir; aksi halde kutu kenarlarinin
+            # uzerinden gecip goruntuyu kirletir.
+            if self.config.visualize.show_trails and result.trails:
+                classes = {d.track_id: d.cls_id for d in objects if d.track_id is not None}
+                draw_trails(canvas, result.trails, classes)
+
+            draw_detections(canvas, objects, self.config.visualize)
 
             if self.config.visualize.show_hud:
-                lines = [
-                    f"Kare {result.frame.index}  |  {result.frame.timestamp:5.2f}s",
-                    f"Nesne: {len(result.detections)}",
-                    f"Cihaz: {self.device_label}",
-                ]
+                lines = [f"Kare {result.frame.index}  |  {result.frame.timestamp:5.2f}s"]
+                if self.tracker is None:
+                    lines.append(f"Nesne: {len(objects)}")
+                else:
+                    # Iki sayinin birlikte artmasi saglikli; toplam kimlik
+                    # aktif iz sabitken hizla buyuyorsa kimlik atlamasi var.
+                    lines.append(
+                        f"Aktif iz: {len(objects)}  |  Toplam kimlik: {len(self.tracker.stats.frames_seen)}"
+                    )
+                lines.append(f"Cihaz: {self.device_label}")
                 if fps is not None:
                     lines.insert(0, f"{fps:.1f} FPS")
                 draw_hud(canvas, lines)
 
         result.rendered = canvas
         return canvas
+
+    def analyze(self, input_path: str | Path | None = None) -> None:
+        """Videoyu isler ama cizim ve yazma yapmaz.
+
+        Parametre taramasi icin: tek amac takip istatistiklerini toplamak
+        oldugunda kare kare mp4 yazmak zamanin buyuk kismini yiyor.
+        """
+        source = input_path or self.config.video.input
+        if source is None:
+            raise ValueError("Girdi videosu belirtilmedi.")
+
+        with VideoReader(
+            source,
+            frame_stride=self.config.video.frame_stride,
+            max_frames=self.config.video.max_frames,
+            resize_width=self.config.video.resize_width,
+        ) as reader:
+            if self.tracker is not None:
+                self.tracker.configure_for_fps(reader.output_meta.fps)
+            for frame in reader:
+                with self.profiler.stage("kare_toplam"):
+                    self.process_frame(frame)
 
     def run(self, input_path: str | Path | None = None, output_path: str | Path | None = None) -> Path:
         """Videoyu bastan sona isler ve cikti videosunun yolunu dondurur."""
@@ -83,6 +141,8 @@ class PerceptionPipeline:
             resize_width=video_cfg.resize_width,
         ) as reader:
             meta = reader.output_meta
+            if self.tracker is not None:
+                self.tracker.configure_for_fps(meta.fps)
             print(f"Girdi : {reader.path}")
             print(
                 f"        {reader.source.width}x{reader.source.height} @ "
@@ -107,6 +167,11 @@ class PerceptionPipeline:
                 frames_written = writer.frames_written
 
         print(f"\n{frames_written} kare yazildi -> {target.resolve()}")
+
+        if self.tracker is not None:
+            print("\nTakip analizi:")
+            print(self.tracker.stats.format_report(self.config.tracking.min_track_len))
+
         print("\nPerformans:")
         print(self.profiler.format_table())
         return target

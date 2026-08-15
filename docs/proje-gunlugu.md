@@ -117,3 +117,128 @@ ByteTrack Ultralytics içinde hazır geliyor; `model.track(persist=True)` çağr
 okuyor. Yani Hafta 2'nin asıl işi entegrasyon değil, **kimlik kaybı analizi**
 olacak: hangi durumlarda ID atlıyor, kaç kare sürüyor, TTC hesabını nasıl
 bozuyor.
+
+---
+
+## Hafta 2 — Takip ve kimlik sürekliliği
+
+**Tarih:** 15 Ağustos 2026
+
+### Yapılanlar
+
+- `tracking.py` — `BYTETracker` sarmalayıcı, `TrackStats`, hareket izi geçmişi
+- `visualize.draw_trails` — boşluk farkındalıklı iz çizimi
+- `pipeline.analyze()` — çizim ve video yazma olmadan işleme (tarama için)
+- `scripts/tracking_sweep.py` — parametre taraması
+- `Config.validate()` — bölümler arası tutarsızlık denetimi
+
+### Karar: `model.track()` değil, `BYTETracker` doğrudan
+
+Hafta 1 notu `model.track(persist=True)` kullanmayı öneriyordu. Vazgeçildi.
+
+O çağrı tespit ve takibi tek işleme gömüyor; sonucunda (a) iki aşamanın süresi
+ayrı ölçülemiyor, (b) tespit çıktısı takibe girmeden elden geçirilemiyor.
+Mimari diyagramda bu iki kutu ayrı çizildiği için kodda da ayrı duruyorlar.
+
+**Bedeli:** Ultralytics'in iç API'sine bağımlılık. Bağımlılık tek bir sınıfta
+(`_ResultsAdapter`) toplandı — kütüphane arayüzü değişirse düzeltilecek tek yer
+orası. Ölçüm bunu haklı çıkardı: takip katmanı kare başına yalnızca **1.5 ms**,
+yani ayrı ölçülmeseydi tespitin 15 ms'i içinde görünmez kalacaktı.
+
+### Tuzak: detektör eşiği ByteTrack'i sessizce devre dışı bırakıyor
+
+ByteTrack'in ayırt edici özelliği, düşük güvenli tespitleri atmak yerine
+**ikinci bir eşleştirme turunda kayıp izleri kurtarmak için** kullanması.
+Detektör `conf=0.35` ile filtrelerse `track_low_thresh=0.1` bandına hiçbir
+tespit ulaşmaz ve algoritma sıradan IoU takibine düşer — hata vermeden,
+sessizce.
+
+Bu yüzden `detection.conf` varsayılanı **0.05**'e çekildi; çıktıyı asıl
+temizleyen eşik zaten `new_track_thresh` (0.25). `Config.validate()` de bu
+çakışmayı yakalayıp uyarıyor.
+
+Teori ölçümle doğrulandı — taramadaki `conf_015` deneyi eşiği 0.15'e çıkarınca
+parçalanma **%44'ten %53'e yükseldi.**
+
+### Sezgiye aykırı bulgu: `match_thresh` yükseltmek eşleştirmeyi *gevşetir*
+
+Kaynak okundu, varsayılmadı: `iou_distance()` maliyet olarak `1 - IoU`
+döndürüyor ve `linear_assignment` bunu `lap.lapjv(cost_limit=match_thresh)`
+ile üst sınır olarak kullanıyor. Yani `match_thresh=0.9` → `IoU >= 0.1` kabul.
+
+KITTI 10 Hz kayıtlı; kareler arası yer değiştirme büyük olduğu için ByteTrack
+varsayılanı 0.8 (`IoU >= 0.2`) izleri koparıyordu. 0.9'a çıkarmak tek başına
+parçalanmayı **%44'ten %24'e** indirdi.
+
+### Parametre taraması
+
+`python scripts/tracking_sweep.py data/kitti_0005.mp4 --config configs/default.yaml`
+
+| deney | kimlik | medyan iz | parçalanma | delikli | FPS |
+|---|---|---|---|---|---|
+| baz (yolov8n, varsayılan) | 52 | 6 | 44% | 33% | 56.7 |
+| yolov8s | 50 | 11 | 28% | 26% | 56.1 |
+| giriş 960px | 57 | 6 | 42% | 23% | 57.3 |
+| detektör eşiği 0.15 | 53 | 4 | **53%** | 36% | 52.3 |
+| track_buffer 60 | 52 | 6 | 44% | 33% | 51.6 |
+| match_thresh 0.9 | 41 | 10 | 24% | 39% | 50.0 |
+| new_track_thresh 0.40 | 40 | 8 | 40% | 28% | 52.0 |
+| **yolov8s + match 0.9** | **39** | **14** | **21%** | 33% | 52.9 |
+
+Baz dışındaki her satır bazdan tek eksende ayrılıyor; böylece farkın hangi
+değişiklikten geldiği belirsiz kalmıyor.
+
+**yolov8s bu donanımda neredeyse bedava** (56.7 → 56.1 FPS). KITTI çözünürlüğünde
+GTX 1080 zaten doymuyor, darboğaz model kapasitesi değil. Zayıf donanımda bu
+tercih değişir — `configs/default.yaml`'da not düşüldü.
+
+`track_buffer` hiçbir şeyi değiştirmedi (52 → 52, %44 → %44). Riskler tablosunda
+"takip parametrelerinin ayarlanması" önlemi vardı; en akla yatkın parametre
+işe yaramayan parametre çıktı.
+
+### Kendi ölçüm betiğimdeki hata
+
+Taramanın ilk çalıştırmasında `baz` 16.1 FPS, `model_s` 22.8 FPS raporladı —
+büyük model küçüğünden hızlı görünüyordu. Sebep: zamanlayıcıyı pipeline
+kurulmadan **önce** başlatmıştım, yani ağırlık indirme ve CUDA warmup süresi
+ölçüme karışıyordu. Zamanlayıcı kurulumdan sonraya alınınca tüm satırlar
+50-57 FPS bandına oturdu.
+
+Hafta 1'deki warmup dersinin aynısı, farklı yerde. Ders güncellendi: **ölçüm
+sınırını her yeni ölçüm aracında baştan sorgula.**
+
+### Çizim hatası: iz, nesnenin gitmediği yolu gösteriyordu
+
+İlk çıktıda hareket izleri görüntüyü yatay olarak katediyordu. Sebep: bir iz
+okluzyon yüzünden kaybolup başka bir noktada geri geldiğinde, geçmişteki son
+nokta ile yeni nokta düz çizgiyle birleştiriliyordu.
+
+**Çözüm:** iz noktaları artık `(kare_no, x, y)` olarak saklanıyor;
+`draw_trails` ardışık noktalar arasında `max_gap`'ten fazla kare varsa çizgiyi
+kesiyor. Bu ayrım hata analizi için kritik — aksi halde okluzyon kaynaklı
+boşluk, gerçek bir kimlik atlamasıyla karıştırılır.
+
+İkinci düzeltme: iz uzunluğu kare yerine **saniye** cinsinden tanımlandı
+(`trail_seconds: 1.5`). 30 karelik iz, 10 Hz KITTI'de 3 saniyelik dev bir
+süpürme izi, 30 fps dashcam'de 1 saniyelik kısa bir iz demek. Saniye
+sabitlenince görsel yoğunluk kaynak videodan bağımsız kalıyor.
+
+### Hafta 2 sonucu
+
+| Ölçüm | Önce | Sonra |
+|---|---|---|
+| Benzersiz kimlik | 55 | 41 |
+| Medyan iz uzunluğu | 4 kare | 15 kare |
+| Parçalanma (<5 kare) | 51% | **17%** |
+| En uzun iz | 126 kare | 154 kare (tüm video) |
+
+Uçtan uca 44.3 FPS (tespit 15.0 ms, takip 1.5 ms, çizim 1.3 ms).
+
+### Sonraki hafta için not
+
+`delikli iz` oranı %29'da kaldı ve `match_thresh` yükseltilince **arttı**
+(%33 → %39). Beklenen davranış: gevşek eşleştirme, izi okluzyon boyunca
+hayatta tutuyor. Kimlik korunduğu için bu iyi haber, ama Hafta 5'te göreli hız
+çıkarılırken **iz içindeki boşluklar es geçilemez** — iki nokta arasında 8 kare
+varsa hız hesabı o farkı hesaba katmalı. `trails` yapısında kare numarası
+zaten saklandığı için veri hazır.

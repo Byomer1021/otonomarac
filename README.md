@@ -140,7 +140,33 @@ python -m perception.cli --config configs/default.yaml --input data/drive.mp4
 ```
 
 Run `python -m perception.cli --help` for the full flag list. Every run prints a
-per-stage timing table at the end.
+per-stage timing table and a tracking report at the end.
+
+### Tracking parameter sweep
+
+Tracker settings are measured, not guessed:
+
+```bash
+python scripts/tracking_sweep.py data/drive.mp4 --config configs/default.yaml
+```
+
+Each experiment differs from the baseline along a single axis, so a change in
+the numbers can be attributed. The script reports unique IDs, median track
+length, fragmentation rate, and throughput. Results and the reasoning behind
+the shipped defaults are in [docs/proje-gunlugu.md](docs/proje-gunlugu.md).
+
+Two findings worth knowing before you tune anything:
+
+- **`detection.conf` must stay below `tracking.track_low_thresh`.** ByteTrack's
+  whole point is reusing low-confidence detections in a second association pass
+  to recover lost tracks. If the detector filters them out first, that pass gets
+  nothing and the algorithm silently degrades to plain IoU tracking. Raising the
+  detector threshold to 0.15 pushed fragmentation from 44% to 53%. `Config.validate()`
+  warns about this.
+- **Raising `match_thresh` loosens matching, it does not tighten it.** The cost
+  matrix is `1 - IoU` and the threshold is an upper bound (`lap.lapjv(cost_limit=…)`),
+  so `0.9` means "accept IoU ≥ 0.1". On 10 Hz footage the 0.8 default is too
+  strict and breaks tracks.
 
 ### Tuning for slow hardware
 
@@ -161,10 +187,12 @@ src/perception/
   config.py      Dataclass config, YAML loading, CLI overrides
   video_io.py    Frame reading/writing, stride, resizing
   detection.py   YOLO wrapper -> Detection objects
+  tracking.py    ByteTrack wrapper, track stats, motion trails
   visualize.py   All OpenCV drawing
   pipeline.py    Layer orchestration
   cli.py         Command-line entry point
   utils.py       Device selection, per-stage profiler
+scripts/         Smoke test, KITTI conversion, parameter sweep
 data/            Input videos (git-ignored)
 outputs/         Rendered results (git-ignored)
 docs/            Project report and engineering log
@@ -177,7 +205,7 @@ docs/            Project report and engineering log
 | Week | Milestone | Status |
 |---|---|---|
 | 1 | Repo skeleton, video I/O, YOLO detection | **done** — 50.7 FPS on GTX 1080 |
-| 2 | ByteTrack integration, IDs, motion trails | |
+| 2 | ByteTrack integration, IDs, motion trails | **done** — 17% track fragmentation |
 | 3 | Depth Anything, box–depth fusion | |
 | 4 | Homography, bird's-eye-view map, two-panel render | |
 | 5 | Relative speed, scale calibration, TTC | |

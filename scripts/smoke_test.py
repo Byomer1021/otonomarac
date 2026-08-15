@@ -69,14 +69,39 @@ def main() -> int:
         detections = detector.detect(frame)
         return f"cihaz={detector.device}, {len(detections)} tespit (sentetik karede 0 normal)"
 
+    def _tracker() -> str:
+        from perception.detection import Detection
+        from perception.tracking import ObjectTracker
+
+        tracker = ObjectTracker()
+        # Sabit hizla saga kayan tek bir kutu: iki karede de ayni kimligi
+        # almazsa takip katmani bozuk demektir.
+        ids = []
+        for step in range(4):
+            det = Detection(xyxy=(100 + step * 8, 200, 180 + step * 8, 300), conf=0.9, cls_id=2)
+            tracked = tracker.update([det], frame_index=step)
+            ids.extend(d.track_id for d in tracked)
+
+        unique = set(ids)
+        if len(unique) != 1:
+            raise AssertionError(f"tek nesne icin {len(unique)} kimlik uretildi: {sorted(unique)}")
+
+        # Iz gecmisi de birikmis olmali, yoksa cizim katmani bos kalir.
+        trail = tracker.trail_for(unique.copy().pop())
+        if len(trail) < 2:
+            raise AssertionError(f"iz gecmisi birikmedi: {trail}")
+        return f"4 karede kimlik korundu (#{unique.pop()}), iz {len(trail)} nokta"
+
     def _draw() -> str:
         from perception.detection import Detection
-        from perception.visualize import draw_detections, draw_hud
+        from perception.visualize import draw_detections, draw_hud, draw_trails
 
         canvas = np.zeros((240, 320, 3), dtype=np.uint8)
+        # Iz noktalari (kare_no, x, y) - kare numarasi bosluk tespiti icin.
+        draw_trails(canvas, {7: [(0, 70.0, 200.0), (1, 68.0, 195.0), (2, 65.0, 188.0)]}, {7: 2})
         draw_detections(canvas, [Detection(xyxy=(20, 30, 120, 200), conf=0.9, cls_id=2, track_id=7)])
-        draw_hud(canvas, ["30.0 FPS", "Nesne: 1"])
-        return "cizim katmani calisti"
+        draw_hud(canvas, ["30.0 FPS", "Aktif iz: 1"])
+        return "kutu + iz + HUD cizildi"
 
     for name, fn in [
         ("PyTorch", _torch),
@@ -84,6 +109,7 @@ def main() -> int:
         ("OpenCV", _opencv),
         ("perception paketi", _package),
         ("YOLO tespit", _detector),
+        ("ByteTrack takip", _tracker),
         ("Cizim", _draw),
     ]:
         results.append(check(name, fn))

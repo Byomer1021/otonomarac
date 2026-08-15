@@ -9,17 +9,37 @@ video:
   resize_width: 1280
 
 detection:
-  model: yolov8n.pt      # n < s < m < l < x  (hiz <-> dogruluk)
-  conf: 0.35
+  # yolov8s, yolov8n'e gore parcalanmayi %44'ten %28'e dusuruyor ve GTX 1080'de
+  # neredeyse bedava geliyor (56.7 -> 56.1 FPS; KITTI cozunurlugunde GPU zaten
+  # doymuyor). Zayif donanimda yolov8n'e donun.
+  model: yolov8s.pt      # n < s < m < l < x  (hiz <-> dogruluk)
+  # DIKKAT: takip acikken bu deger tracking.track_low_thresh'in ALTINDA olmali.
+  # Aksi halde ByteTrack'in dusuk guvenli ikinci eslestirme asamasina hic tespit
+  # ulasmaz ve algoritma siradan IoU takibine duser. Config.validate() uyarir.
+  conf: 0.05
   iou: 0.5
   imgsz: 640
   device: auto           # auto | cpu | cuda | cuda:0
   classes: [0, 1, 2, 3, 5, 7, 9]   # yaya, bisiklet, araba, motosiklet, otobus, kamyon, trafik isigi
   half: false            # GPU'da true yapmak hizlandirir
 
+tracking:
+  enabled: true
+  track_high_thresh: 0.25   # birinci asama eslestirme
+  track_low_thresh: 0.1     # ikinci asama - ByteTrack'in ayirt edici ozelligi
+  new_track_thresh: 0.25    # yeni iz baslatma esigi
+  track_buffer: 30          # kayip izin yasatilacagi kare sayisi
+  # Sezgiye aykiri: maliyet 1-IoU ve esik ust sinir, yani YUKSELTMEK gevsetir.
+  # 0.9 => IoU >= 0.1 kabul. Olcum: parcalanma %44 -> %24.
+  match_thresh: 0.9
+  fuse_score: true
+  trail_seconds: 1.5        # hareket izinin gecmisi, saniye (0 = kapat)
+  min_track_len: 5          # bundan kisa izler analizde "parcalanmis" sayilir
+
 visualize:
   show_conf: true
   show_class_name: true
   show_hud: true
+  show_trails: true
   line_thickness: 2
   font_scale: 0.5

@@ -9,6 +9,7 @@ description = "Tek kamera tabanli surus sahnesi algilama ve kusbakisi haritalama
 requires-python = ">=3.10"
 dependencies = [
     "ultralytics>=8.3.0",
+    "lap>=0.5.12",
     "opencv-python>=4.10.0",
     "numpy>=1.26.0",
     "PyYAML>=6.0",

@@ -40,6 +40,19 @@ def build_parser() -> argparse.ArgumentParser:
     )
     detection.add_argument("--half", action="store_true", default=None, help="FP16 (sadece GPU)")
 
+    tracking = parser.add_argument_group("takip")
+    tracking.add_argument(
+        "--no-track",
+        action="store_true",
+        help="Takibi kapat, sadece tespit. Varsayilan conf takip icin dusuk "
+        "tutuldugundan bunu --conf 0.35 ile birlikte kullanin",
+    )
+    tracking.add_argument("--track-buffer", type=int, default=None, help="Kayip izin yasatilacagi kare")
+    tracking.add_argument("--match-thresh", type=float, default=None, help="IoU eslestirme esigi")
+    tracking.add_argument(
+        "--trail-seconds", type=float, default=None, help="Hareket izinin gecmisi, saniye (0 = kapat)"
+    )
+
     parser.add_argument("--no-hud", action="store_true", help="Bilgi panelini gizle")
     parser.add_argument(
         "--dump-config",
@@ -64,6 +77,10 @@ def main(argv: list[str] | None = None) -> int:
             "detection.imgsz": args.imgsz,
             "detection.device": args.device,
             "detection.half": args.half,
+            "tracking.enabled": False if args.no_track else None,
+            "tracking.track_buffer": args.track_buffer,
+            "tracking.match_thresh": args.match_thresh,
+            "tracking.trail_seconds": args.trail_seconds,
             "visualize.show_hud": False if args.no_hud else None,
         }
     )

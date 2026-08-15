@@ -35,7 +35,12 @@ class DetectionConfig:
     """YOLO tespit katmani ayarlari."""
 
     model: str = "yolov8n.pt"
-    conf: float = 0.35
+    #: Kasitli olarak dusuk. ByteTrack ikinci eslestirme asamasinda dusuk
+    #: guvenli tespitleri kayip izleri kurtarmak icin kullanir; detektor
+    #: burada agresif filtrelerse o asama bos kalir. Ciktiyi asil temizleyen
+    #: esik `tracking.new_track_thresh` (0.25). Takip kapaliyken bu degeri
+    #: yukseltmek gerekir - bkz. `--no-track`.
+    conf: float = 0.05
     iou: float = 0.5
     imgsz: int = 640
     #: "auto" | "cpu" | "cuda" | "cuda:0"
@@ -47,12 +52,49 @@ class DetectionConfig:
 
 
 @dataclass
+class TrackingConfig:
+    """ByteTrack takip katmani ayarlari.
+
+    Esik degerleri Ultralytics'in bytetrack.yaml varsayilanlariyla ayni;
+    burada tekrar edilmelerinin sebebi tek bir config dosyasindan yonetilmeleri.
+    """
+
+    enabled: bool = True
+    #: Birinci asama eslestirme esigi. Yukseltmek izleri temizler, kopmayi artirir.
+    track_high_thresh: float = 0.25
+    #: Ikinci asama - ByteTrack'in ayirt edici ozelligi. Bu bandin altindaki
+    #: tespitler atilmaz, kaybolan izleri kurtarmak icin kullanilir.
+    track_low_thresh: float = 0.1
+    #: Eslesmeyen tespit bu degerin uzerindeyse yeni iz baslatilir.
+    new_track_thresh: float = 0.25
+    #: Kaybolan izin kac kare hayatta tutulacagi (okluzyon toleransi).
+    track_buffer: int = 30
+    #: IoU tabanli eslestirme esigi. DIKKAT - sezgiye aykiri: maliyet matrisi
+    #: `1 - IoU` ve esik bir ust sinir (`lap.lapjv(cost_limit=...)`), yani bu
+    #: degeri YUKSELTMEK eslestirmeyi GEVSETIR. 0.9 => IoU >= 0.1 kabul edilir.
+    #: ByteTrack varsayilani 0.8; scripts/tracking_sweep.py olcumunde 0.9'a
+    #: cikarmak parcalanmayi %44'ten %24'e dusurdu (KITTI 10 Hz, kareler arasi
+    #: yer degistirme buyuk oldugu icin dar esik izleri koparıyordu).
+    match_thresh: float = 0.9
+    #: Tespit skorunu eslestirme maliyetine karistir.
+    fuse_score: bool = True
+    #: Hareket izinin kac saniyelik gecmisi gosterecegi (0 = iz cizme).
+    #: Kare degil saniye cinsinden, cunku ayni kare sayisi 10 Hz KITTI'de 3
+    #: saniyelik dev bir supurme izi, 30 fps dashcam'de 1 saniyelik kisa bir iz
+    #: demek. Saniye sabitlenince gorsel yogunluk kaynaktan bagimsiz kalir.
+    trail_seconds: float = 1.5
+    #: Bu kareden kisa izler analizde "parcalanmis" sayilir.
+    min_track_len: int = 5
+
+
+@dataclass
 class VisualizeConfig:
     """Cizim ayarlari."""
 
     show_conf: bool = True
     show_class_name: bool = True
     show_hud: bool = True
+    show_trails: bool = True
     line_thickness: int = 2
     font_scale: float = 0.5
 
@@ -63,7 +105,39 @@ class Config:
 
     video: VideoConfig = field(default_factory=VideoConfig)
     detection: DetectionConfig = field(default_factory=DetectionConfig)
+    tracking: TrackingConfig = field(default_factory=TrackingConfig)
     visualize: VisualizeConfig = field(default_factory=VisualizeConfig)
+
+    def validate(self) -> list[str]:
+        """Bolumler arasi tutarsizliklari bulur ve uyari metinleri dondurur.
+
+        Tek bir bolume bakarak gorulemeyen hatalari yakalar - bunlarin en
+        onemlisi asagidaki tespit/takip esik catismasidir.
+        """
+        warnings_found: list[str] = []
+
+        if self.tracking.enabled and self.detection.conf > self.tracking.track_low_thresh:
+            warnings_found.append(
+                f"detection.conf ({self.detection.conf}) > tracking.track_low_thresh "
+                f"({self.tracking.track_low_thresh}): ByteTrack'in dusuk guvenli ikinci "
+                f"eslestirme asamasi bos kalir ve algoritma siradan IoU takibine duser. "
+                f"Takip acikken detection.conf degerini track_low_thresh'in altina cekin."
+            )
+
+        if self.tracking.enabled and self.tracking.track_low_thresh >= self.tracking.track_high_thresh:
+            warnings_found.append(
+                f"tracking.track_low_thresh ({self.tracking.track_low_thresh}) >= "
+                f"track_high_thresh ({self.tracking.track_high_thresh}): ikinci asama devre disi kalir."
+            )
+
+        if self.video.frame_stride > 1 and self.tracking.enabled:
+            warnings_found.append(
+                f"video.frame_stride={self.video.frame_stride} ile kareler arasi hareket buyur; "
+                f"takip eslestirmesi zorlanir. Kimlik atlamasi artarsa track_buffer'i dusurup "
+                f"match_thresh'i gevsetmeyi deneyin."
+            )
+
+        return warnings_found
 
     @classmethod
     def load(cls, path: str | Path | None = None) -> Config:

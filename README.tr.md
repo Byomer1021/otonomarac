@@ -140,7 +140,32 @@ python -m perception.cli --config configs/default.yaml --input data/surus.mp4
 ```
 
 Tüm bayraklar için `python -m perception.cli --help`. Her çalıştırma sonunda
-katman bazlı süre tablosu basılır.
+katman bazlı süre tablosu ve takip raporu basılır.
+
+### Takip parametre taraması
+
+Takip ayarları tahmin edilmedi, ölçüldü:
+
+```bash
+python scripts/tracking_sweep.py data/surus.mp4 --config configs/default.yaml
+```
+
+Her deney bazdan tek eksende ayrılıyor, böylece rakamlardaki fark bir
+değişikliğe atfedilebiliyor. Betik benzersiz kimlik sayısı, medyan iz uzunluğu,
+parçalanma oranı ve hız raporluyor. Sonuçlar ve varsayılanların gerekçesi
+[docs/proje-gunlugu.md](docs/proje-gunlugu.md) içinde.
+
+Ayar yapmadan önce bilinmesi gereken iki bulgu:
+
+- **`detection.conf`, `tracking.track_low_thresh`'in altında kalmalı.**
+  ByteTrack'in tüm amacı düşük güvenli tespitleri ikinci bir eşleştirme turunda
+  kayıp izleri kurtarmak için kullanmak. Detektör onları önce filtrelerse o tur
+  boş kalır ve algoritma sessizce sıradan IoU takibine düşer. Detektör eşiğini
+  0.15'e çıkarmak parçalanmayı %44'ten %53'e taşıdı. `Config.validate()` uyarır.
+- **`match_thresh` yükseltmek eşleştirmeyi gevşetir, sıkılaştırmaz.** Maliyet
+  matrisi `1 - IoU` ve eşik bir üst sınır (`lap.lapjv(cost_limit=…)`), yani
+  `0.9` "IoU ≥ 0.1 kabul" demek. 10 Hz kayıtta varsayılan 0.8 fazla dar kalıyor
+  ve izleri koparıyor.
 
 ### Yavaş donanım için ayarlar
 
@@ -161,10 +186,12 @@ src/perception/
   config.py      Dataclass config, YAML okuma, CLI ezme
   video_io.py    Kare okuma/yazma, kare atlama, ölçekleme
   detection.py   YOLO sarmalayıcı -> Detection nesneleri
+  tracking.py    ByteTrack sarmalayıcı, takip istatistikleri, hareket izleri
   visualize.py   Tüm OpenCV çizimleri
   pipeline.py    Katmanların birleştiği yer
   cli.py         Komut satırı girişi
   utils.py       Cihaz seçimi, katman bazlı süre ölçer
+scripts/         Smoke test, KITTI dönüştürme, parametre taraması
 data/            Girdi videoları (git dışı)
 outputs/         Üretilen sonuçlar (git dışı)
 docs/            Proje raporu ve mühendislik günlüğü
@@ -177,7 +204,7 @@ docs/            Proje raporu ve mühendislik günlüğü
 | Hafta | Hedef | Durum |
 |---|---|---|
 | 1 | Depo iskeleti, video I/O, YOLO tespiti | **bitti** — GTX 1080'de 50.7 FPS |
-| 2 | ByteTrack, kimlikler, hareket izleri | |
+| 2 | ByteTrack, kimlikler, hareket izleri | **bitti** — %17 iz parçalanması |
 | 3 | Depth Anything, kutu–derinlik füzyonu | |
 | 4 | Homografi, kuşbakışı harita, çift panel | |
 | 5 | Göreli hız, ölçek kalibrasyonu, TTC | |
