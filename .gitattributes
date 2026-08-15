@@ -1,0 +1,20 @@
+# Depoda her zaman LF sakla, Windows'ta checkout sirasinda yerel bicime cevir.
+# Bu proje hem Windows'ta hem Colab/Linux'ta calisacagi icin satir sonu
+# farklarinin diff'leri kirletmesini engeller.
+* text=auto
+
+*.py    text diff=python
+*.md    text
+*.yaml  text
+*.yml   text
+*.txt   text
+*.toml  text
+
+# Ikili dosyalar - donusum uygulanmasin
+*.png   binary
+*.jpg   binary
+*.mp4   binary
+*.gif   binary
+*.pt    binary
+*.onnx  binary
+*.zip   binary
