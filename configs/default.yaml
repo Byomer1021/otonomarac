@@ -1,0 +1,25 @@
+# Varsayilan pipeline ayarlari.
+# CLI argumanlari bu dosyayi ezer: python -m perception.cli --config configs/default.yaml --model yolov8s.pt
+
+video:
+  input: null
+  output: outputs/result.mp4
+  frame_stride: 1        # CPU'da 2-3 yapmak isleme suresini dogrudan boler
+  max_frames: null       # hizli deneme icin ornegin 150
+  resize_width: 1280
+
+detection:
+  model: yolov8n.pt      # n < s < m < l < x  (hiz <-> dogruluk)
+  conf: 0.35
+  iou: 0.5
+  imgsz: 640
+  device: auto           # auto | cpu | cuda | cuda:0
+  classes: [0, 1, 2, 3, 5, 7, 9]   # yaya, bisiklet, araba, motosiklet, otobus, kamyon, trafik isigi
+  half: false            # GPU'da true yapmak hizlandirir
+
+visualize:
+  show_conf: true
+  show_class_name: true
+  show_hud: true
+  line_thickness: 2
+  font_scale: 0.5

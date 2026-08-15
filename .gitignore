@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+
+# Veri ve çıktılar (repoya girmez)
+data/*
+!data/.gitkeep
+outputs/*
+!outputs/.gitkeep
+runs/
+
+# Model ağırlıkları
+*.pt
+*.onnx
+*.engine
+weights/
+
+# Medya
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.gif
+
+# Yerel geçici klasör (pip build workaround'u)
+.tmp/
+
+# Editör / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Notebook
+.ipynb_checkpoints/

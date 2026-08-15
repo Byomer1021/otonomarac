@@ -1,0 +1,8 @@
+# torch/torchvision BURADA YOK - platforma gore ayri kurulur.
+# Kurulum komutlari icin README'deki "Kurulum" bolumune bak.
+
+ultralytics>=8.3.0
+opencv-python>=4.10.0
+numpy>=1.26.0
+PyYAML>=6.0
+tqdm>=4.66.0
