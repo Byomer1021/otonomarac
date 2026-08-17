@@ -165,9 +165,14 @@ class BEVConfig:
     #: konumu bozmaz, mutlak mesafeyi bozar. Hafta 5'te kalibre edilecek.
     quad_depth_m: float = 12.0
 
-    #: Haritada gosterilecek alan (aracin burnundan ileri, ve iki yana).
+    #: Haritada gosterilecek alan (referans satirindan ileri, ve iki yana).
     range_ahead_m: float = 35.0
     range_side_m: float = 12.0
+    #: Referans satirinin GERISI. Koordinat orijini kalibrasyon dortgeninin
+    #: yakin kenari; ego arac bunun birkac metre gerisinde ve yakindaki
+    #: araclarin zemine degme noktasi da bu bolgeye duser. Gosterilmezse
+    #: haritanin en dolu kismi kaybolur.
+    range_behind_m: float = 7.0
     #: Harita cozunurlugu.
     px_per_m: float = 12.0
 

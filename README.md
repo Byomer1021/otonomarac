@@ -13,6 +13,13 @@ A perception pipeline that takes a **single forward-facing camera** feed and ans
 The output is a two-panel video: the annotated camera view on the left, a live
 bird's-eye-view map of vehicles and lanes on the right.
 
+![Detection, tracking and bird's-eye-view projection running on dashcam footage from Maltepe, Istanbul](docs/assets/demo.gif)
+
+*Own dashcam footage, Maltepe/Istanbul. Left: detections with persistent track
+IDs, motion trails, and relative depth. Right: ground-plane positions through a
+homography. Distances on the map are measured from the calibration reference
+row, not from the vehicle's nose — see [Calibrating the bird's-eye view](#calibrating-the-birds-eye-view).*
+
 > **Status: Week 1 of 8 — detection layer.** This README documents the target
 > system; the [Roadmap](#roadmap) marks what actually works today.
 

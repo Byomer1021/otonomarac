@@ -14,6 +14,13 @@ bir algı sistemi:
 Nihai çıktı iki panelli bir video: solda işlenmiş kamera görüntüsü, sağda
 araçların ve şeritlerin üstten gösterildiği dinamik harita.
 
+![Maltepe'de çekilen dashcam görüntüsü üzerinde tespit, takip ve kuşbakışı projeksiyon](docs/assets/demo.gif)
+
+*Kendi dashcam kaydımız, Maltepe/İstanbul. Solda: kalıcı kimlikli tespitler,
+hareket izleri ve göreli derinlik. Sağda: homografiyle çıkarılan zemin
+konumları. Haritadaki mesafeler aracın burnundan değil kalibrasyon referans
+satırından ölçülüyor — bkz. [Kuşbakışı haritanın kalibrasyonu](#kuşbakışı-haritanın-kalibrasyonu).*
+
 > **Durum: 8 haftanın 1. haftası — tespit katmanı.** Bu README hedeflenen
 > sistemi anlatıyor; bugün gerçekten ne çalışıyor için [Yol haritası](#yol-haritası)
 > bölümüne bak.

@@ -130,9 +130,12 @@ class BEVProjector:
 
         ground = self.to_ground(np.array(contacts, dtype=np.float32), shape)
         for det, (gx, gy) in zip(usable, ground):
-            # Arkada veya cok uzakta cikan noktalar atilir: homografi ufka
-            # yaklastikca hizla bozulur, oradaki deger olculmus sayilmamali.
-            if gy <= 0 or gy > self.config.max_range_m:
+            # Negatif y, kalibrasyon dortgeninin gerisi demek - ego araca yakin
+            # nesneler burada. Homografi ayni duzlem uzerinde kisa bir
+            # ekstrapolasyon yapiyor, bu gecerli; ama sinirsiz degil.
+            # Uzak uctaki sinir ise ufka yaklastikca projeksiyonun hizla
+            # bozulmasindan geliyor - orada uretilen deger olculmus sayilmamali.
+            if not -self.config.range_behind_m <= gy <= self.config.max_range_m:
                 det.bev_xy = None
             else:
                 det.bev_xy = (float(gx), float(gy))
@@ -145,17 +148,18 @@ class BEVProjector:
     def canvas_size(self) -> tuple[int, int]:
         """(genislik, yukseklik) piksel."""
         w = int(round(2 * self.config.range_side_m * self.config.px_per_m))
-        h = int(round(self.config.range_ahead_m * self.config.px_per_m))
-        return w, h
+        span = self.config.range_ahead_m + self.config.range_behind_m
+        return w, int(round(span * self.config.px_per_m))
 
     def to_canvas(self, x_m: float, y_m: float) -> tuple[int, int]:
         """Zemin koordinatini harita pikseline cevirir.
 
-        Harita yukari dogru ilerlemeyi gosterir: ego arac altta ortada.
+        Harita yukari dogru ilerlemeyi gosterir. Alt kenar y = -range_behind_m,
+        yani referans satirinin gerisi de gorunur.
         """
         w, h = self.canvas_size
         px = w / 2 + x_m * self.config.px_per_m
-        py = h - y_m * self.config.px_per_m
+        py = h - (y_m + self.config.range_behind_m) * self.config.px_per_m
         return int(round(px)), int(round(py))
 
     def render(self, detections: list[Detection]) -> np.ndarray:
@@ -219,6 +223,14 @@ class BEVProjector:
                 cv2.FONT_HERSHEY_SIMPLEX, 0.34, text, 1, cv2.LINE_AA,
             )
             distance += step
+
+        # Orijin cizgisi: kalibrasyon dortgeninin yakin kenari. Mesafeler
+        # buradan olculuyor, aracin burnundan degil - ikisi arasindaki fark
+        # olculmedi, o yuzden cizgi acikca isaretleniyor.
+        _, py0 = self.to_canvas(0.0, 0.0)
+        cv2.line(canvas, (0, py0), (w, py0), (90, 90, 100), 1, cv2.LINE_AA)
+        cv2.putText(canvas, "0m ref", (4, py0 - 4),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.34, (140, 140, 150), 1, cv2.LINE_AA)
 
         # Serit genisliginde dikey referanslar: haritadaki yanal olcegi
         # gozle dogrulamayi mumkun kilar.

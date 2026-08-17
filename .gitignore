@@ -25,6 +25,9 @@ weights/
 *.mov
 *.mkv
 *.gif
+# ...ama README'deki tanitim gorselleri depoya girer
+!docs/assets/*.gif
+!docs/assets/*.png
 
 # Yerel geçici klasör (pip build workaround'u)
 .tmp/
