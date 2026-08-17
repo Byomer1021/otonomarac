@@ -486,3 +486,117 @@ sınırın altına düşen tespitlerin zemine değme noktası da geçersiz sayı
 
 Ölçek belirsizliği hâlâ açık: `relative_distance` birimsiz. Hafta 5'te şerit
 genişliği (3.5 m) referansıyla kalibre edilecek.
+
+---
+
+## Hafta 4 — Kuşbakışı projeksiyon
+
+**Tarih:** 18 Ağustos 2026
+
+### Yapılanlar
+
+- `bev.py` — homografi (Yöntem A), zemin projeksiyonu, harita çizimi
+- `CameraConfig.road_quad` — kalibrasyon dörtgeni, piksel değil oran olarak
+- `scripts/calibrate_bev.py` — dörtgen seçme + **bağımsız** doğrulama
+- Çift panelli çıktı: solda kamera, sağda harita
+
+### Kalibrasyon: gözle değil ölçümle
+
+Homografiyi kurmak kolay, doğru kurduğunu bilmek zor. Süreç üç adımda ilerledi
+ve ikisinde yanıldım.
+
+**Adım 1 — otomatik şerit tespiti denendi, bırakıldı.** Renk maskesi + Hough
+ile sarı orta çizgi temiz bulundu, ama beyaz maske kaldırımı, park etmiş
+araçları ve binaları da yakaladı; sarı maske de trafik konilerine takıldı.
+Satır satır incelendiğinde gerçek çizginin yalnızca y 552-611 arasında olduğu
+görüldü. Otomatik şerit çıkarımı zaten **Hafta 6'nın işi** — buraya çekmek
+kapsam kayması olurdu, bırakıldı.
+
+**Adım 2 — ilk doğrulamam döngüseldi.** Dörtgeni sarı çizgiden kurup sonra
+"düzleştirilmiş görünümde sarı çizgi dikey mi" diye ölçüyordum. Elbette
+dikeydi. Belirti açıktı ama fark etmesi zaman aldı: **onlarca farklı ufuk
+değeri tam olarak aynı mükemmel skoru veriyordu**, yani ölçüm kalibrasyonu hiç
+kısıtlamıyordu. Bir doğrulama hiçbir yapılandırmayı elemiyorsa doğrulama değildir.
+
+**Adım 3 — bağımsız referans: araç genişliği.** Kalibrasyonda hiç kullanılmayan
+bir büyüklük seçildi. Tespit edilen araçların kutu alt kenarı zemine yansıtılıp
+genişliği ölçülüyor. İki beklenti var:
+
+- medyan tipik araç genişliğine (~1.8 m) yakın olmalı
+- genişlik **mesafeden bağımsız** olmalı — asıl test bu; korelasyon sıfırdan
+  uzaksa perspektif doğru kaldırılmamış demektir
+
+Bu ölçütle ufuk yüksekliği tarandı:
+
+| ufuk y | örnek | medyan genişlik | korelasyon |
+|---|---|---|---|
+| 470 | 48 | 1.46 m | −0.20 |
+| **480** | **44** | **1.64 m** | **−0.02** |
+| 490 | 30 | 1.77 m | +0.27 |
+| 500 | 18 | 2.09 m | +0.46 |
+| 510 | 13 | 2.39 m | +0.49 |
+
+y=480'de korelasyon sıfırlanıyor. Not: iki yol-paralel çizginin kesişiminden
+hesaplanan kaybolma noktası y=510 demişti; araç genişliği testi y=480 diyor.
+Aradaki fark beyaz çizgi fit'inin belirsizliğinden geliyor ve **çözülmüş
+değil** — fiziğe daha doğrudan bağlı olan ikinci ölçüt tercih edildi.
+
+Ölçek: `quad_width_m` şerit genişliği varsayılarak değil, araç genişliğinden
+**ölçülerek** 3.84 m'ye ayarlandı.
+
+### Ölçek belirsizliği somutlaştı
+
+`quad_depth_m` 6'dan 22 m'ye değiştirildiğinde:
+
+| quad_depth_m | medyan genişlik | korelasyon | en uzak araç |
+|---|---|---|---|
+| 6 | 1.62 m | +0.04 | 16.9 m |
+| 12 | 1.75 m | −0.04 | 33.8 m |
+| 22 | 1.94 m | −0.07 | 63.4 m |
+
+Genişlik ve korelasyon değişmiyor, sadece mutlak mesafeler ölçekleniyor.
+Yani **bu test boylamsal ölçeği kısıtlayamıyor.** Ön rapordaki "ölçek
+belirsizliği" maddesinin somut hâli bu: yanal ölçek bir referansla
+sabitlenebildi, boylamsal ölçek sabitlenemedi. 12 m varsayıldı ve config'de
+varsayım olduğu açıkça yazıldı.
+
+### Doğrulama betiğindeki ikinci hata
+
+Betik ilk çalıştığında medyan genişlik 1.14 m çıktı, kendi ölçümüm 1.64
+demişti. Sebep: betik `config.detection` kullanıyordu ve orada `conf: 0.05`
+yazıyor — o eşik ByteTrack'in ikinci eşleştirme turu için **bilinçli olarak**
+düşük. Doğrulama için zararlı: kısmi ve örtülü kutular gerçekte olduklarından
+dar ölçülüp medyanı aşağı çekiyor. Doğrulama artık kendi eşiğini (0.40)
+kullanıyor.
+
+Ders: bir parametrenin bir katmandaki doğru değeri, başka bir katmanda yanlış
+olabilir. Config'i olduğu gibi devralmak sessiz bir hata kaynağı.
+
+### Nihai durum
+
+Doğrulama, 20 kare / 46 araç örneğiyle: medyan yansıtılmış genişlik
+**1.89 m** (hedef 1.80, %5 sapma), mesafe korelasyonu **−0.25**. "Kabul
+edilebilir" — kalan korelasyon ufuk tahminindeki gerçek belirsizliği yansıtıyor
+ve gürültüye aşırı uydurmak yanlış olurdu.
+
+Projeksiyon kare başına **0.1 ms**. Uçtan uca (derinlik kapalı) 30.2 FPS.
+
+### Modelleme notu: haritanın orijini araç değil
+
+Koordinat orijini kalibrasyon dörtgeninin yakın kenarının ortası — yani şeridin
+ortası. Kamera oranın tam üzerinde olmak zorunda değil, bu yüzden ego aracın
+yanal konumu görüntünün orta sütununun zemin karşılığından hesaplanıyor
+(`ego_offset_m`).
+
+Boylamsal konum ise **bilinmiyor**: dörtgenin yakın kenarının araca uzaklığı
+ölçülmedi. Harita "yakın referans satırından itibaren" mesafe gösteriyor,
+aracın burnundan değil. Hafta 5'te TTC hesaplanırken bu sabit kaydırma önemli
+hale gelecek.
+
+### Sonraki hafta için not
+
+Hafta 5'in iki işi var ve ikisi de bu haftanın açık bıraktığı yerden başlıyor:
+boylamsal ölçeği bağımsız bir referansla sabitlemek (şerit kesik çizgi
+periyodu bir aday), ve ego'nun harita üzerindeki gerçek konumunu belirlemek.
+İkisi de yapılmadan TTC sayısı üretmek, ölçülmüş gibi görünen bir tahmin
+üretmek olur.

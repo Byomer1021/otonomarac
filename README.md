@@ -182,6 +182,33 @@ scale, so every object's "distance" changes while nothing has moved. Speed
 estimation depends on exactly that frame-to-frame difference. Normalisation
 happens only in the drawing layer, only for the colour map.
 
+### Calibrating the bird's-eye view
+
+The homography needs four points on the road plane, and they are camera- and
+mount-specific:
+
+```bash
+python scripts/calibrate_bev.py data/drive.mp4 --frame 900 \
+    --quad 0.414,0.839 0.654,0.839 0.579,0.728 0.493,0.728 --verify
+```
+
+`--verify` checks the calibration against something it was **not** built from:
+the projected width of detected vehicles. Two numbers matter — the median should
+land near a typical vehicle width (~1.8 m), and the width must be uncorrelated
+with distance. The second is the real test; a non-zero correlation means the
+perspective was not properly removed.
+
+An earlier version of this check measured whether the yellow centre line came
+out vertical after warping. That was circular — the quad was built from that
+same line, so the answer was always perfect, and dozens of different horizon
+heights scored identically. A check that rejects no configuration is not a check.
+
+`quad_depth_m` is an **assumption, not a measurement**. Varying it from 6 m to
+22 m leaves both the median width and the distance correlation unchanged while
+scaling every absolute distance on the map. Lateral scale can be pinned to a
+reference; longitudinal scale cannot, with this test. That is the monocular
+scale ambiguity, stated plainly rather than hidden behind a number.
+
 ### Tuning for slow hardware
 
 | Flag | Effect |
@@ -221,7 +248,7 @@ docs/            Project report and engineering log
 | 1 | Repo skeleton, video I/O, YOLO detection | **done** — 50.7 FPS on GTX 1080 |
 | 2 | ByteTrack integration, IDs, motion trails | **done** — 17% track fragmentation |
 | 3 | Depth Anything, box–depth fusion | **done** — relative depth per object |
-| 4 | Homography, bird's-eye-view map, two-panel render | |
+| 4 | Homography, bird's-eye-view map, two-panel render | **done** — 0.1 ms/frame |
 | 5 | Relative speed, scale calibration, TTC | |
 | 6 | Lane / drivable-area segmentation | |
 | 7 | Gradio UI, Hugging Face Spaces deploy | |

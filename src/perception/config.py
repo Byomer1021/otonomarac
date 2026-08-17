@@ -64,6 +64,14 @@ class CameraConfig:
     #: Maltepe cekimi icin olculen deger: 915/1080 = 0.85. None = kaput yok.
     hood_top: float | None = None
 
+    #: Yol duzlemi uzerinde secilmis dort nokta - homografinin kaynagi.
+    #: Sira: yakin-sol, yakin-sag, uzak-sag, uzak-sol (saat yonu).
+    #: Piksel degil ORAN olarak saklanir (genislik/yukseklik kesri), boylece
+    #: isleme cozunurlugu degistiginde kalibrasyon bozulmaz.
+    #: Bu dortgen gercek dunyada bir dikdortgen kabul edilir; kenar
+    #: uzunluklari BEVConfig.quad_width_m / quad_depth_m ile verilir.
+    road_quad: list[list[float]] | None = None
+
 
 @dataclass
 class DepthConfig:
@@ -137,6 +145,40 @@ class TrackingConfig:
 
 
 @dataclass
+class BEVConfig:
+    """Kusbakisi (bird's eye view) projeksiyon ayarlari.
+
+    Yontem A - homografi: yol duz bir duzlem kabul edilir ve goruntudeki dort
+    nokta zemin duzlemindeki karsiliklariyla eslestirilir. Derinlik modeline
+    hic ihtiyac duymaz, hizli ve kararlidir; yol egimliyse bozulur.
+    """
+
+    enabled: bool = True
+
+    #: camera.road_quad'in gercek dunyadaki genisligi. Serit genisligi
+    #: referans alinir - Turkiye'de tipik olarak 3.5 m.
+    quad_width_m: float = 3.5
+    #: camera.road_quad'in gercek dunyadaki derinligi.
+    #: DIKKAT: bu bir VARSAYIM. Genislik serit isaretinden olculebiliyor ama
+    #: derinlik icin goruntude bilinen bir referans yok. Yanlissa haritadaki
+    #: mesafeler tek bir katsayiyla olceklenmis olur - siralamayi ve yanal
+    #: konumu bozmaz, mutlak mesafeyi bozar. Hafta 5'te kalibre edilecek.
+    quad_depth_m: float = 12.0
+
+    #: Haritada gosterilecek alan (aracin burnundan ileri, ve iki yana).
+    range_ahead_m: float = 35.0
+    range_side_m: float = 12.0
+    #: Harita cozunurlugu.
+    px_per_m: float = 12.0
+
+    #: Zemin cizgilerinin araligi (metre).
+    grid_step_m: float = 5.0
+    #: Bu mesafenin otesindeki nesneler haritaya cizilmez - homografi
+    #: uzakta hizla bozulur ve orada uretilen konum guvenilmez.
+    max_range_m: float = 40.0
+
+
+@dataclass
 class VisualizeConfig:
     """Cizim ayarlari."""
 
@@ -157,6 +199,7 @@ class Config:
     detection: DetectionConfig = field(default_factory=DetectionConfig)
     tracking: TrackingConfig = field(default_factory=TrackingConfig)
     depth: DepthConfig = field(default_factory=DepthConfig)
+    bev: BEVConfig = field(default_factory=BEVConfig)
     visualize: VisualizeConfig = field(default_factory=VisualizeConfig)
 
     def validate(self) -> list[str]:
@@ -192,6 +235,17 @@ class Config:
                 "camera.hood_top ayarlanmamis. Kaput goren bir cekimde kutunun alt "
                 "kenari arac icine dusebilir; o bolgenin derinligi yolu degil kaputu "
                 "olcer. Kaput gorunuyorsa oranini girin (Maltepe icin 0.85)."
+            )
+
+        if self.bev.enabled and self.camera.road_quad is None:
+            warnings_found.append(
+                "bev.enabled ama camera.road_quad tanimli degil. Homografi icin yol "
+                "duzleminde dort nokta gerekiyor; 'python scripts/calibrate_bev.py' "
+                "ile secip config'e yazin."
+            )
+        elif self.camera.road_quad is not None and len(self.camera.road_quad) != 4:
+            warnings_found.append(
+                f"camera.road_quad tam olarak 4 nokta olmali, {len(self.camera.road_quad)} verildi."
             )
 
         if self.video.frame_stride > 1 and self.tracking.enabled:

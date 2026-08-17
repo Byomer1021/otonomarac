@@ -17,6 +17,13 @@ camera:
   # vermedi cunku kaputta yansima oynuyor.
   hood_top: 0.85
 
+  # Homografinin kaynagi: yol duzleminde iki GERCEK yol-paralel cizgiden
+  # kurulmus dortgen. Sol kenar sari orta cizgi (HSV maskesi + dogru fit,
+  # x = -1.2732*y + 1298.7), sag kenar sagdaki beyaz serit boyasi.
+  # Ufuk yuksekligi (y=480) gozle degil olcumle secildi - bkz. proje gunlugu.
+  # Sira: yakin-sol, yakin-sag, uzak-sag, uzak-sol. Piksel degil oran.
+  road_quad: [[0.4138, 0.8389], [0.6539, 0.8389], [0.5786, 0.7278], [0.4934, 0.7278]]
+
 detection:
   model: yolov8s.pt
   conf: 0.05
@@ -62,8 +69,31 @@ depth:
   input_width: 518
   sample_width_ratio: 0.5
   sample_height_ratio: 0.25
-  show_panel: true
+  # Derinlik paneli kapali: projenin gorsel imzasi iki panel (kamera + harita).
+  # Derinlik yine hesaplaniyor ve etiketlere yaziliyor, sadece ayri panel
+  # olarak gosterilmiyor. Hata ayiklarken --depth-panel ile acilabilir.
+  show_panel: false
   colormap: INFERNO
+
+bev:
+  enabled: true
+  # Dortgenin gercek genisligi. Serit genisligi (3.5 m) varsayilmadi, OLCULDU:
+  # kalibrasyonda hic kullanilmayan bir referansla - arac genisligi. Zemine
+  # yansitilan araclarin medyan genisligi 1.80 m'ye gelecek sekilde ayarlandi.
+  quad_width_m: 3.84
+  # VARSAYIM, olcum degil. Arac genisligi testi bu parametreyi kisitlamiyor:
+  # 6 ile 22 m arasinda degistirildiginde medyan genislik (1.57-1.94 m) ve
+  # mesafe korelasyonu (+-0.07) degismiyor, sadece haritadaki mutlak mesafeler
+  # olcekleniyor. Monokuler olcek belirsizligi tam olarak bu. Hafta 5'te
+  # bagimsiz bir boylamsal referansla kalibre edilecek.
+  quad_depth_m: 12.0
+  range_ahead_m: 35.0
+  range_side_m: 12.0
+  px_per_m: 12.0
+  grid_step_m: 5.0
+  # Bu mesafenin otesinde homografi hizla bozulur; orada uretilen konum
+  # olculmus sayilmamali, o yuzden cizilmiyor.
+  max_range_m: 40.0
 
 visualize:
   show_conf: true

@@ -13,6 +13,10 @@ camera:
   # Bu satirin altindaki pikseller yol degil arac ici; derinlik orneklemesi
   # ve zemine degme noktasi oraya bakmamali. null = kaput gorunmuyor.
   hood_top: null
+  # Homografinin kaynagi - her kamera/montaj icin ayri kalibre edilmeli:
+  #   python scripts/calibrate_bev.py <video> --quad ... --verify
+  # Sira: yakin-sol, yakin-sag, uzak-sag, uzak-sol. Piksel degil oran.
+  road_quad: null
 
 detection:
   # yolov8s, yolov8n'e gore parcalanmayi %44'ten %28'e dusuruyor ve GTX 1080'de
@@ -54,6 +58,20 @@ depth:
   sample_height_ratio: 0.25 # kutunun alt %25 yuksekligi
   show_panel: true
   colormap: INFERNO
+
+bev:
+  enabled: true
+  # Dortgenin gercek dunyadaki genisligi. Serit genisligi (3.5 m) makul bir
+  # baslangic, ama arac genisligiyle dogrulanmali - calibrate_bev.py --verify.
+  quad_width_m: 3.5
+  # VARSAYIM. Arac genisligi testi bu parametreyi kisitlamaz; degistirmek
+  # haritadaki mutlak mesafeleri olcekler, siralamayi ve yanal konumu bozmaz.
+  quad_depth_m: 12.0
+  range_ahead_m: 35.0
+  range_side_m: 12.0
+  px_per_m: 12.0
+  grid_step_m: 5.0
+  max_range_m: 40.0
 
 visualize:
   show_conf: true

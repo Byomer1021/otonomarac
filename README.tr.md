@@ -181,6 +181,33 @@ karşılaştırılamaz kılar — sahneye tek bir yakın nesne girdiğinde tüm 
 değişir. Hız tahmini tam da o kareler arası farka dayanıyor. Normalizasyon
 sadece çizim katmanında, sadece renk haritası için yapılıyor.
 
+### Kuşbakışı haritanın kalibrasyonu
+
+Homografi yol düzleminde dört nokta ister; bu noktalar kameraya ve montaja özgü:
+
+```bash
+python scripts/calibrate_bev.py data/surus.mp4 --frame 900 \
+    --quad 0.414,0.839 0.654,0.839 0.579,0.728 0.493,0.728 --verify
+```
+
+`--verify` kalibrasyonu, kalibrasyonda **kullanılmayan** bir şeyle sınar:
+tespit edilen araçların zemine yansıtılmış genişliği. İki sayı önemli — medyan
+tipik araç genişliğine (~1.8 m) yakın olmalı, ve genişlik mesafeden bağımsız
+olmalı. Asıl test ikincisi; sıfırdan uzak bir korelasyon perspektifin doğru
+kaldırılmadığını gösterir.
+
+Bu kontrolün ilk sürümü, sarı orta çizginin düzleştirmeden sonra dikey çıkıp
+çıkmadığına bakıyordu. O ölçüm döngüseldi — dörtgen zaten o çizgiden
+kuruluyordu, sonuç her zaman mükemmel geliyordu ve onlarca farklı ufuk değeri
+aynı skoru alıyordu. Hiçbir yapılandırmayı elemeyen bir doğrulama, doğrulama
+değildir.
+
+`quad_depth_m` bir **varsayım, ölçüm değil**. 6 m'den 22 m'ye değiştirildiğinde
+medyan genişlik de mesafe korelasyonu da değişmiyor, sadece haritadaki bütün
+mutlak mesafeler ölçekleniyor. Yanal ölçek bir referansa bağlanabiliyor,
+boylamsal ölçek bu testle bağlanamıyor. Monoküler ölçek belirsizliği tam olarak
+budur; bir sayının arkasına saklanmak yerine açıkça yazıldı.
+
 ### Yavaş donanım için ayarlar
 
 | Bayrak | Etkisi |
@@ -220,7 +247,7 @@ docs/            Proje raporu ve mühendislik günlüğü
 | 1 | Depo iskeleti, video I/O, YOLO tespiti | **bitti** — GTX 1080'de 50.7 FPS |
 | 2 | ByteTrack, kimlikler, hareket izleri | **bitti** — %17 iz parçalanması |
 | 3 | Depth Anything, kutu–derinlik füzyonu | **bitti** — nesne başına göreli derinlik |
-| 4 | Homografi, kuşbakışı harita, çift panel | |
+| 4 | Homografi, kuşbakışı harita, çift panel | **bitti** — 0.1 ms/kare |
 | 5 | Göreli hız, ölçek kalibrasyonu, TTC | |
 | 6 | Şerit / sürülebilir alan segmentasyonu | |
 | 7 | Gradio arayüzü, Hugging Face Spaces | |

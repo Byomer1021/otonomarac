@@ -126,6 +126,43 @@ def main() -> int:
         shown_depth = f"~{det.depth:.1f}" if det.depth is not None else "gecersiz (beklenebilir)"
         return f"cihaz={estimator.device}, ham aralik {disparity.min():.2f}..{disparity.max():.2f}, ornek {shown_depth}"
 
+    def _bev() -> str:
+        from perception.bev import BEVProjector
+        from perception.config import BEVConfig, CameraConfig
+        from perception.detection import Detection
+
+        # Yol duzleminde makul bir yamuk: yakin kenar genis, uzak kenar dar.
+        camera = CameraConfig(
+            hood_top=0.85,
+            road_quad=[[0.41, 0.84], [0.65, 0.84], [0.58, 0.73], [0.49, 0.73]],
+        )
+        projector = BEVProjector(BEVConfig(quad_width_m=3.8, quad_depth_m=12.0), camera)
+        shape = (720, 1280)
+
+        near = Detection(xyxy=(600, 520, 700, 600), conf=0.9, cls_id=2, track_id=1)
+        far = Detection(xyxy=(630, 505, 670, 530), conf=0.9, cls_id=2, track_id=2)
+        projector.project([near, far], shape)
+
+        if near.bev_xy is None or far.bev_xy is None:
+            raise AssertionError(f"projeksiyon uretilemedi: {near.bev_xy}, {far.bev_xy}")
+        if not far.bev_xy[1] > near.bev_xy[1]:
+            raise AssertionError(
+                f"uzaktaki nesne daha yakin cikti: {far.bev_xy[1]:.1f} <= {near.bev_xy[1]:.1f}"
+            )
+
+        # Kaputun altina dusen temas noktasi gecersiz olmali.
+        under = Detection(xyxy=(600, 640, 700, 700), conf=0.9, cls_id=2)
+        projector.project([under], shape)
+        if under.bev_xy is not None:
+            raise AssertionError("kaput altindaki kutu icin zemin konumu uretildi")
+
+        canvas = projector.render([near, far])
+        w, h = projector.canvas_size
+        if canvas.shape[:2] != (h, w):
+            raise AssertionError(f"harita boyutu yanlis: {canvas.shape[:2]} != {(h, w)}")
+
+        return f"yakin {near.bev_xy[1]:.1f}m < uzak {far.bev_xy[1]:.1f}m, harita {w}x{h}"
+
     def _draw() -> str:
         from perception.detection import Detection
         from perception.visualize import draw_detections, draw_hud, draw_trails
@@ -145,6 +182,7 @@ def main() -> int:
         ("YOLO tespit", _detector),
         ("ByteTrack takip", _tracker),
         ("Depth Anything + fuzyon", _depth),
+        ("Kusbakisi projeksiyon", _bev),
         ("Cizim", _draw),
     ]:
         results.append(check(name, fn))

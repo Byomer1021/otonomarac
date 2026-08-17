@@ -13,6 +13,7 @@ from pathlib import Path
 import numpy as np
 from tqdm import tqdm
 
+from .bev import BEVProjector
 from .config import Config
 from .depth import DepthEstimator, fuse, normalize_for_display
 from .detection import Detection, YOLODetector
@@ -59,6 +60,11 @@ class PerceptionPipeline:
         self.depth = (
             DepthEstimator(self.config.depth, self.config.camera) if self.config.depth.enabled else None
         )
+        self.bev = (
+            BEVProjector(self.config.bev, self.config.camera)
+            if self.config.bev.enabled and self.config.camera.road_quad
+            else None
+        )
 
     @property
     def device_label(self) -> str:
@@ -84,6 +90,10 @@ class PerceptionPipeline:
             # oldugunu gizlerdi.
             with self.profiler.stage("fuzyon"):
                 fuse(result.objects, result.disparity, self.config.depth, self.config.camera)
+
+        if self.bev is not None:
+            with self.profiler.stage("projeksiyon"):
+                self.bev.project(result.objects, frame.image.shape[:2])
 
         return result
 
@@ -129,6 +139,9 @@ class PerceptionPipeline:
                     # renk yakin demek. Tersini varsaymak kolay bir hata.
                     labels=("Kamera", "Derinlik (acik = yakin, goreli)"),
                 )
+
+            if self.bev is not None:
+                canvas = stack_panels(canvas, self.bev.render(result.objects))
 
         result.rendered = canvas
         return canvas
