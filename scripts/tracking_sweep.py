@@ -34,7 +34,12 @@ EXPERIMENTS: dict[str, tuple[str, dict, dict]] = {
     "imgsz_960": ("giris 960px (kucuk nesneler)", {"imgsz": 960}, {}),
     "conf_015": ("detektor esigi 0.15", {"conf": 0.15}, {}),
     "buffer_60": ("kayip iz 60 kare yasasin", {}, {"track_buffer": 60}),
-    "match_090": ("eslestirme esigi 0.9", {}, {"match_thresh": 0.9}),
+    # match_thresh iki yonde de denenmeli: dogru deger kaynagin kare hizina
+    # bagli. 10 Hz'de kareler arasi yer degistirme buyuk, gevsek esik gerekir;
+    # 30-60 fps'te hareket kucuk oldugu icin siki esik daha temiz olabilir.
+    "match_070": ("eslestirme esigi 0.7 (siki)", {}, {"match_thresh": 0.7}),
+    "match_080": ("eslestirme esigi 0.8 (ByteTrack varsayilani)", {}, {"match_thresh": 0.8}),
+    "match_090": ("eslestirme esigi 0.9 (gevsek)", {}, {"match_thresh": 0.9}),
     "newtrack_040": ("yeni iz esigi 0.40", {}, {"new_track_thresh": 0.40}),
     # Tek eksenli deneylerin en iyi ikisinin birlesimi.
     "birlesik": ("yolov8s + eslestirme 0.9", {"model": "yolov8s.pt"}, {"match_thresh": 0.9}),

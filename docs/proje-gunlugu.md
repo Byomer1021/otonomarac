@@ -234,7 +234,7 @@ sabitlenince görsel yoğunluk kaynak videodan bağımsız kalıyor.
 
 Uçtan uca 44.3 FPS (tespit 15.0 ms, takip 1.5 ms, çizim 1.3 ms).
 
-### Sonraki hafta için not
+### Sonraki hafta için not (Hafta 2)
 
 `delikli iz` oranı %29'da kaldı ve `match_thresh` yükseltilince **arttı**
 (%33 → %39). Beklenen davranış: gevşek eşleştirme, izi okluzyon boyunca
@@ -242,3 +242,111 @@ hayatta tutuyor. Kimlik korunduğu için bu iyi haber, ama Hafta 5'te göreli h�
 çıkarılırken **iz içindeki boşluklar es geçilemez** — iki nokta arasında 8 kare
 varsa hız hesabı o farkı hesaba katmalı. `trails` yapısında kare numarası
 zaten saklandığı için veri hazır.
+
+---
+
+## Ara kayıt — kendi çekimimiz devreye girdi
+
+**Tarih:** 17 Ağustos 2026
+
+Hafta 1'de "vitrin GIF'i için temiz lisanslı bir dashcam klibi lazım" diye açık
+bırakılan madde kapandı: video kendimiz çekildi (Maltepe, İstanbul). Lisans
+sorunu tamamen ortadan kalktı ve hazır veri setlerinde bulunmayan bir trafik
+karakteri kazanıldı.
+
+**Kaynak:** 2560×1440, 59.94 fps, VP9/MKV, 75.5 dakika, 6.5 GB.
+
+### Klip üretimi
+
+6.5 GB'lık dosyayı olduğu gibi işlemek anlamsız. `ffmpeg` ile iki klip kesildi:
+
+| Klip | Kaynak konumu | Süre | Amaç |
+|---|---|---|---|
+| `maltepe_city.mp4` | 14:30 | 60 sn | Ana geliştirme klibi, yoğun şehir trafiği |
+| `maltepe_test.mp4` | 10:00 | 20 sn | Hızlı iterasyon |
+
+H.264, 1920×1080, 30 fps (60'tan yarıya indirildi — ardışık kareler algı için
+gereksiz derecede benzer), CRF 20.
+
+**Ses bilinçli olarak atıldı (`-an`).** Kaynakta opus ses akışı var ve araç içi
+konuşma içerebilir; bu klipler herkese açık demoya gidecek. Algı için de
+gereksiz.
+
+Videonun ilk ~40 dakikası şehir içi (asıl malzeme), sonrası kırsal ve büyük
+ölçüde boş yol. Kırsal bölüm Hafta 8'de "nesne yokken sistem ne yapıyor"
+senaryosu için ayrıldı.
+
+### Yanlış çıkan tespitim: mercek distorsiyonu
+
+İlk karelere bakıp **"belirgin balık gözü distorsiyonu var, Hafta 4'teki
+homografi bozulur"** dedim. Ölçtüm, yanılmışım.
+
+Kırsal bölümdeki ufuk çizgisi gerçek dünyada dümdüz olmak zorunda ve görüntünün
+tam genişliğini kat ediyor. Gökyüzü-zemin geçişi sütun sütun bulunup iki ucu
+birleştiren düz çizgiyle karşılaştırıldı: **sol uç y=891, sağ uç y=891**,
+2560 pikselin tamamında sapma yok. Ortadaki 48 piksellik fark uzaktaki
+tepelerden geliyor, mercekten değil.
+
+Ufuk çizgisi dikey merkezin 171 piksel altında, yani merkezden uzakta —
+barrel distorsiyon olsaydı uçlarda aşağı doğru kıvrılırdı. Kıvrılmıyor.
+
+**Sonuç:** kamera ya rektilineer ya da düzeltmeyi kendi içinde yapıyor.
+Hafta 4 için kalibrasyon detouru gerekmiyor. Binaların kenarlarında gördüğümü
+sandığım eğrilik, geniş açıda normal olan perspektif yakınsamasıymış.
+
+*Ders: "gözle bakıp karar verme" hatası, Hafta 1 ve 2'deki ölçüm derslerinin
+üçüncüsü. Bu sefer iddiayı yayınlamadan önce ölçtüm.*
+
+### Gerçek olan sorun: kaput ve torpido
+
+Görüntünün altında araç içi var ve bu yol değil. Zamansal varyans yeterince
+keskin ayrım vermedi (kaputta yansıma oynuyor), bu yüzden ızgara bindirilip
+elle okundu:
+
+- **y ≈ 915**: silecek ve torpido başlıyor
+- **y ≈ 940 altı**: tamamen araç içi
+- Kullanılabilir yol alanı: **üstteki %83** (1080 pikselin ~900'ü)
+
+Bu Hafta 4 için iki yerde lazım olacak: homografi kaynak noktaları bu sınırın
+üstünden seçilmeli, ve alt kenarı bu sınırın altına düşen tespitlerin "zemine
+değme noktası" geçersiz sayılmalı — o piksel yolu değil kaputu gösteriyor.
+
+### Ölçüm: `match_thresh` hipotezim de yanlış çıktı
+
+Hafta 2 sonunda "`match_thresh=0.9` bulgusu KITTI'nin 10 Hz'ine özgü olabilir,
+30 fps'te kareler arası hareket küçük olacağı için varsayılan 0.8 daha iyi
+çıkabilir" diye tahmin etmiştim. Test edildi:
+
+| deney | kimlik | medyan iz | parçalanma | delikli |
+|---|---|---|---|---|
+| 0.7 (sıkı) | 263 | 4 | **%55** | %21 |
+| 0.8 (ByteTrack varsayılanı) | 128 | 22 | %23 | %27 |
+| **0.9 (gevşek)** | **104** | **36** | **%16** | %29 |
+| new_track_thresh 0.40 | 91 | 45 | %15 | %24 |
+
+30 fps'te de gevşek eşik kazandı, tahminimin tersine. Sebep muhtemelen kare
+hızı değil nesne ölçeği: şehir içinde yakın araçlar karede büyük ve tespit
+kutusunun boyutu kare kare oynuyor; sabit duran bir nesnede bile IoU bu yüzden
+düşüyor ve dar eşik izi koparıyor.
+
+`new_track_thresh: 0.40` biraz daha iyi görünüyor ama **bedava değil**: eş
+zamanlı iz sayısı 9.5'ten 8.8'e düşüyor, yani parçalanmanın bir kısmı "daha az
+şey takip ederek" kazanılıyor. Uzaktaki küçük araçlar hiç iz almıyor.
+Varsayılan değiştirilmedi; Hafta 5'te TTC'nin hangi nesnelere ihtiyaç duyduğu
+netleşince yeniden bakılacak.
+
+### İlk gerçek çalıştırma
+
+`maltepe_test.mp4` (20 sn, 600 kare) üzerinde mevcut ayarlarla:
+
+| Ölçüm | KITTI | Maltepe |
+|---|---|---|
+| Parçalanma | %17 | %16 |
+| Medyan iz | 15 kare | 36 kare |
+| En uzun iz | 154 kare | 312 kare (10 sn) |
+| Uçtan uca | 44.3 FPS | 28.2 FPS |
+
+Tespit güveni belirgin daha yüksek (0.83-0.91 aralığı), çünkü görüntü KITTI'nin
+1242×375'ine göre çok daha yüksek çözünürlüklü ve nesneler karede büyük.
+FPS düşüşü de bundan: 1280 genişlikte işlerken kare başına tespit 13.7 ms'den
+23.3 ms'e çıkıyor.
