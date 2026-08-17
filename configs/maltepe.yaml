@@ -95,6 +95,26 @@ bev:
   # olculmus sayilmamali, o yuzden cizilmiyor.
   max_range_m: 40.0
 
+risk:
+  enabled: true
+  min_observations: 5       # iki noktadan cikarilan hiz gurultunun kendisidir
+  history_seconds: 1.2
+  ttc_critical_s: 2.0
+  ttc_warning_s: 4.0
+  ttc_max_s: 10.0
+  min_closing_speed: 0.5
+  # Ego arac hareket ettigi icin park halindeki her nesne de "yaklasiyor"
+  # gorunur. Yanal kapi olmadan 104 izin 57'si kritik cikiyordu.
+  path_half_width_m: 1.7
+  min_distance_m: 2.0
+  # detection.conf takip icin 0.05; o zayif kutular titrer ve uydurma hiz
+  # uretir. Risk daha yuksek bir esik ister.
+  min_confidence: 0.35
+  # Kismen ortulu aracin zemine degme noktasi gorunmez; homografi onu
+  # oldugundan uzaga koyar ve ortulme degistikce mesafe ziplar. Fit artigi
+  # bunu yakaliyor - olcumde sahte bir kritik uyariyi eledi.
+  max_fit_residual_ratio: 0.04
+
 visualize:
   show_conf: true
   show_class_name: true

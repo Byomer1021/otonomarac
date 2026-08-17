@@ -25,6 +25,13 @@ CLASS_COLORS: dict[int, tuple[int, int, int]] = {
 }
 _DEFAULT_COLOR = (200, 200, 200)
 
+#: Risk seviyesine gore vurgu rengi (BGR). Sinif renginin yerine gecer -
+#: bir nesne riskliyse ekranda once bunu gormek gerekir, ne oldugunu sonra.
+RISK_COLORS: dict[str, tuple[int, int, int]] = {
+    "uyari": (0, 190, 255),    # amber
+    "kritik": (40, 40, 240),   # kirmizi
+}
+
 _FONT = cv2.FONT_HERSHEY_SIMPLEX
 
 
@@ -42,9 +49,11 @@ def draw_detections(
 
     for det in detections:
         x1, y1, x2, y2 = (int(round(v)) for v in det.xyxy)
-        color = class_color(det.cls_id)
+        risk_color = RISK_COLORS.get(det.risk or "")
+        color = risk_color or class_color(det.cls_id)
 
-        cv2.rectangle(image, (x1, y1), (x2, y2), color, cfg.line_thickness)
+        thickness = cfg.line_thickness + (2 if det.risk == "kritik" else 0)
+        cv2.rectangle(image, (x1, y1), (x2, y2), color, thickness)
         label = _build_label(det, cfg)
         if label:
             _draw_label(image, label, (x1, y1), color, cfg.font_scale)
@@ -63,9 +72,10 @@ def _build_label(det: Detection, cfg: VisualizeConfig) -> str:
         parts.append(f"{det.conf:.2f}")
     if det.depth is not None:
         # Birim YOK. Bu deger goreli - tek kameradan mutlak mesafe olculemez.
-        # "m" yazmak kolay olurdu ama olmayan bir kesinlik iddia ederdi;
-        # olcek kalibrasyonu Hafta 5'in isi.
+        # "m" yazmak kolay olurdu ama olmayan bir kesinlik iddia ederdi.
         parts.append(f"~{det.depth:.1f}")
+    if det.ttc is not None:
+        parts.append(f"TTC {det.ttc:.1f}s")
     return " ".join(parts)
 
 

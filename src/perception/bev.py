@@ -170,7 +170,7 @@ class BEVProjector:
         ego konumu) ve ikisini ayirmak her cagride yarim duzine parametre
         tasimayi gerektirirdi.
         """
-        from .visualize import class_color  # dairesel import olmasin diye burada
+        from .visualize import RISK_COLORS, class_color  # dairesel import olmasin diye burada
 
         w, h = self.canvas_size
         canvas = np.full((h, w, 3), 22, dtype=np.uint8)
@@ -186,12 +186,14 @@ class BEVProjector:
             if not (0 <= px < w and 0 <= py < h):
                 continue
 
-            color = class_color(det.cls_id)
+            color = RISK_COLORS.get(det.risk or "") or class_color(det.cls_id)
             # Uzaktaki nesne kucuk cizilir: hem okunurluk hem de projeksiyonun
             # orada daha belirsiz oldugunu ima etmek icin.
             radius = max(3, int(round(9 - y_m / self.config.range_ahead_m * 5)))
             cv2.circle(canvas, (px, py), radius, color, -1)
             cv2.circle(canvas, (px, py), radius, (12, 12, 12), 1)
+            if det.risk == "kritik":
+                cv2.circle(canvas, (px, py), radius + 4, color, 1, cv2.LINE_AA)
 
             if det.track_id is not None:
                 cv2.putText(

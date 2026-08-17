@@ -17,6 +17,7 @@ from .bev import BEVProjector
 from .config import Config
 from .depth import DepthEstimator, fuse, normalize_for_display
 from .detection import Detection, YOLODetector
+from .risk import RiskEstimator
 from .tracking import ObjectTracker
 from .utils import Profiler, describe_device
 from .video_io import Frame, VideoReader, VideoWriter
@@ -65,6 +66,12 @@ class PerceptionPipeline:
             if self.config.bev.enabled and self.config.camera.road_quad
             else None
         )
+        # Risk, zemin konumuna dayaniyor: BEV yoksa hesaplanamaz.
+        self.risk = (
+            RiskEstimator(self.config.risk)
+            if self.config.risk.enabled and self.bev is not None
+            else None
+        )
 
     @property
     def device_label(self) -> str:
@@ -94,6 +101,13 @@ class PerceptionPipeline:
         if self.bev is not None:
             with self.profiler.stage("projeksiyon"):
                 self.bev.project(result.objects, frame.image.shape[:2])
+
+        if self.risk is not None:
+            with self.profiler.stage("risk"):
+                # Kare numarasi degil zaman damgasi: izlerin bir kismi
+                # okluzyonda kaybolup geri geliyor ve gozlemler arasi kare
+                # sayisi sabit degil.
+                self.risk.update(result.objects, frame.timestamp, self.bev.ego_offset_m)
 
         return result
 
@@ -213,6 +227,10 @@ class PerceptionPipeline:
         if self.tracker is not None:
             print("\nTakip analizi:")
             print(self.tracker.stats.format_report(self.config.tracking.min_track_len))
+
+        if self.risk is not None:
+            print("\nRisk analizi:")
+            print(self.risk.summary())
 
         print("\nPerformans:")
         print(self.profiler.format_table())

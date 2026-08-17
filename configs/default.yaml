@@ -73,6 +73,19 @@ bev:
   grid_step_m: 5.0
   max_range_m: 40.0
 
+risk:
+  enabled: true
+  min_observations: 5
+  history_seconds: 1.2
+  ttc_critical_s: 2.0
+  ttc_warning_s: 4.0
+  ttc_max_s: 10.0
+  min_closing_speed: 0.5
+  path_half_width_m: 1.7    # ego guzergah koridoru; disindakiler risk sayilmaz
+  min_distance_m: 2.0
+  min_confidence: 0.35      # detection.conf'tan bagimsiz ve belirgin yuksek
+  max_fit_residual_ratio: 0.04   # ortulme kaynakli sahte hizlari eler
+
 visualize:
   show_conf: true
   show_class_name: true

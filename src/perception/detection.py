@@ -53,6 +53,10 @@ class Detection:
     track_id: int | None = None
     depth: float | None = None
     bev_xy: tuple[float, float] | None = None
+    #: Carpismaya kalan sure (saniye). Hesaplanamadiysa None - bkz. risk.py.
+    ttc: float | None = None
+    #: RiskLevel degeri ("yok" | "uyari" | "kritik")
+    risk: str | None = None
 
     @property
     def cls_name(self) -> str:

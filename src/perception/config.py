@@ -184,6 +184,62 @@ class BEVConfig:
 
 
 @dataclass
+class RiskConfig:
+    """Goreli hiz ve carpismaya kalan sure (TTC) ayarlari."""
+
+    enabled: bool = True
+
+    #: Hiz tahmini icin gereken en az gozlem sayisi. Bunun altinda sayi
+    #: uretilmez - iki noktadan cikarilan hiz gurultunun kendisidir.
+    min_observations: int = 5
+    #: Hiz, son bu kadar saniyelik gecmise dogru fit edilerek cikarilir.
+    history_seconds: float = 1.2
+
+    #: Bu esigin altindaki TTC "kritik", ikincisinin altindaki "uyari".
+    ttc_critical_s: float = 2.0
+    ttc_warning_s: float = 4.0
+    #: Bundan buyuk TTC gosterilmez - anlamli bir uyari degil.
+    ttc_max_s: float = 10.0
+
+    #: Yaklasma hizi bu degerin altindaysa TTC hesaplanmaz. Sifira yakin
+    #: hizda TTC sonsuza gider ve kucuk bir olcum gurultusu devasa ya da
+    #: negatif sayilar uretir.
+    min_closing_speed: float = 0.5
+
+    #: Ego'nun guzergah koridorunun yari genisligi. Yalnizca bu koridordaki
+    #: nesneler icin TTC uretilir.
+    #: GEREKCESI: ego arac hareket ettigi icin park halindeki her nesne de
+    #: "yaklasiyor" gorunur ve gecerli bir TTC uretir. Ilk olcumde 104 izin
+    #: 57'si kritik cikti - yol kenarindaki araclari carpisma riski sayan bir
+    #: uyari sistemi ise yaramaz. Yanal kapi bunu eliyor.
+    path_half_width_m: float = 1.7
+    #: Bu mesafenin altindaki nesne icin TTC uretilmez. Referans satirinin
+    #: dibindeki nesne yanimizdan geciyor olabilir, onumuze giriyor degil.
+    min_distance_m: float = 2.0
+
+    #: Hiz fitinin izin verilen en buyuk RMS artigi, mesafenin orani olarak.
+    #: Gercekten yaklasan bir nesnenin mesafe-zaman egrisi duz bir dogrudur;
+    #: artik buyukse olculen sey hareket degil gurultudur.
+    #: GEREKCESI: kismen ortulu bir aracin zemine degme noktasi gorunmez;
+    #: kutunun gorunen alt kenari gercek temas noktasinin ustunde kalir ve
+    #: homografi araci oldugundan uzaga koyar. Ortulme kare kare degistigi
+    #: icin mesafe ziplar ve devasa bir sahte yaklasma hizi uretir. Olculdu:
+    #: Duster'in arkasindaki bir arac 22 m'de 14 m/s yaklasiyor gorundu.
+    #: BEDELI: 0.04 esigi o sahte izi eliyor ama gercek uyarinin gozlemlerini
+    #: de 39'dan 21'e dusuruyor. Uyari yine tum yaklasma boyunca cikiyor,
+    #: sadece daha seyrek. Sahte kritik uyari uretmemek daha onemli sayildi.
+    max_fit_residual_ratio: float = 0.04
+
+    #: Risk degerlendirmesi icin gereken en dusuk tespit guveni.
+    #: `detection.conf` ByteTrack'in ikinci eslestirme turu icin bilincli
+    #: olarak 0.05'te tutuluyor; o zayif kutular takibi ayakta tutmakta ise
+    #: yariyor ama kare kare titriyor. Titreyen kutu -> titreyen zemin konumu
+    #: -> uydurma yaklasma hizi. Olculdu: 0.16 guvenli bir tespit 24.7 m'de
+    #: 15 m/s yaklasiyor gorunup kritik uyari uretti.
+    min_confidence: float = 0.35
+
+
+@dataclass
 class VisualizeConfig:
     """Cizim ayarlari."""
 
@@ -205,6 +261,7 @@ class Config:
     tracking: TrackingConfig = field(default_factory=TrackingConfig)
     depth: DepthConfig = field(default_factory=DepthConfig)
     bev: BEVConfig = field(default_factory=BEVConfig)
+    risk: RiskConfig = field(default_factory=RiskConfig)
     visualize: VisualizeConfig = field(default_factory=VisualizeConfig)
 
     def validate(self) -> list[str]:

@@ -256,7 +256,7 @@ docs/            Project report and engineering log
 | 2 | ByteTrack integration, IDs, motion trails | **done** — 17% track fragmentation |
 | 3 | Depth Anything, box–depth fusion | **done** — relative depth per object |
 | 4 | Homography, bird's-eye-view map, two-panel render | **done** — 0.1 ms/frame |
-| 5 | Relative speed, scale calibration, TTC | |
+| 5 | Relative speed, scale calibration, TTC | **done** — TTC is scale-invariant |
 | 6 | Lane / drivable-area segmentation | |
 | 7 | Gradio UI, Hugging Face Spaces deploy | |
 | 8 | Documentation, failure analysis, performance table | |
@@ -279,11 +279,26 @@ first, Method B follows, and the two are compared in a dedicated section** —
 "I tried both, here is where they differ" is a far stronger claim than one method
 presented alone.
 
-**Scale ambiguity.** Absolute distance is not recoverable from a single camera —
-this is the known fundamental limit of monocular vision. A fixed reference
-calibrates the scale factor: lane width (typically 3.5 m in Turkey) or typical
-vehicle width (~1.8 m). The assumption and its error margin are stated openly
-rather than hidden.
+**Scale ambiguity, and why TTC escapes it.** Absolute distance is not
+recoverable from a single camera. Worse than the initial plan assumed: a
+*lateral* reference such as lane or vehicle width cannot fix the *longitudinal*
+scale at all, because focal length cancels out of the lateral relation and does
+not cancel out of the depth one:
+
+```
+X = (u − u_c) · h / (v − v_h)      ← f cancels
+Z = f · h / (v − v_h)              ← f remains
+```
+
+So the lateral calibration pins the camera height — it comes out at 1.43 m over
+107 vehicle samples, right for a windscreen mount — while `bev.quad_depth_m`
+stays an assumption. Map distances in metres are uncertain up to one factor.
+
+**Time-to-collision is not.** Scale every distance by an unknown *k* and the
+closing speed scales by the same *k*, so `TTC = d / v` is unchanged. Measured:
+doubling `quad_depth_m` doubles the reported distance (1.3 → 2.6 → 5.2 m) and
+leaves TTC at 1.29 s every time. The most useful output turned out to be
+independent of the weakest assumption.
 
 **No model training.** Pre-trained weights are a prioritisation, not laziness.
 The skills this project exists to demonstrate are **system integration, geometry,

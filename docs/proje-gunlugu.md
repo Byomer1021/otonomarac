@@ -600,3 +600,116 @@ boylamsal ölçeği bağımsız bir referansla sabitlemek (şerit kesik çizgi
 periyodu bir aday), ve ego'nun harita üzerindeki gerçek konumunu belirlemek.
 İkisi de yapılmadan TTC sayısı üretmek, ölçülmüş gibi görünen bir tahmin
 üretmek olur.
+
+---
+
+## Hafta 5 — Hız ve çarpışma riski
+
+**Tarih:** 18 Ağustos 2026
+
+### Yapılanlar
+
+- `risk.py` — iz geçmişinden yaklaşma hızı, TTC, risk sınıflandırması
+- Riskli nesnelerin kamerada ve haritada vurgulanması
+- Çalıştırma sonunda risk özeti
+
+### Ölçek endişesi gereksizmiş: TTC ölçek-değişmez
+
+Hafta 4'ün sonunda "boylamsal ölçek sabitlenmeden TTC üretmek yanlış olur"
+diye not düşmüştüm. **Yanlıştı.**
+
+Bütün mesafeler bilinmeyen bir k katsayısıyla çarpılırsa, yaklaşma hızı da
+aynı k ile çarpılır:
+
+```
+TTC = mesafe / yaklaşma_hızı = (k·d) / (k·v) = d / v
+```
+
+Ölçüldü — `quad_depth_m` iki katına çıkarıldığında mesafe tam iki katına
+çıkıyor ama TTC değişmiyor:
+
+| quad_depth_m | en düşük TTC | o anki mesafe |
+|---|---|---|
+| 6 | 1.29 s | 1.3 m |
+| 12 | 1.29 s | 2.6 m |
+| 24 | 1.29 s | 5.2 m |
+
+**Projenin en çok işe yarayan çıktısı, en zayıf varsayımından bağımsız çıktı.**
+Haritadaki metre değerleri hâlâ bir ölçek katsayısı kadar belirsiz; saniye
+cinsinden TTC metrik olarak doğru.
+
+### Yan not: yanal referanslar boylamsal ölçeği neden veremez
+
+Hafta 4'te bunu ölçümle görmüştüm ama sebebini bu hafta çıkardım. Düz yol,
+kamera yüksekliği h, ufuk satırı v_h, odak f:
+
+```
+X = (u − u_c) · h / (v − v_h)      ← f sadeleşir
+Z = f · h / (v − v_h)              ← f kalır
+```
+
+Yani araç genişliği veya şerit genişliği gibi **yanal** ölçümler yalnızca
+kamera yüksekliğini verir, mesafeyi vermez. Ön rapordaki "şerit genişliği
+üzerinden ölçek kalibre edilecek" planı bu noktada eksikti.
+
+Kamera yüksekliği türetildi ve **1.43 m** çıktı (107 araç örneği, çeyrekler
+1.12-1.89). Ön cama monte bir dashcam için beklenen aralık; yanal
+kalibrasyonun bağımsız bir fiziksel doğrulaması.
+
+### Üç yanlış sonuç, üç düzeltme
+
+**1. Park halindeki her araç "yaklaşıyor" çıktı.** İlk çalıştırmada 104 izin
+**57'si kritik**. Sebep kavramsal değil hatalı da değil: ego araç hareket
+ettiği için yol kenarındaki her nesne gerçekten yaklaşıyor. Ama yol kenarındaki
+araçları çarpışma riski sayan bir uyarı sistemi işe yaramaz.
+
+Çözüm: ego güzergâh koridoru (`path_half_width_m: 1.7`). 104 izden 6'sı
+koridora giriyor.
+
+**2. Düşük güvenli tespitler sahte hız üretti.** `detection.conf` ByteTrack'in
+ikinci turu için bilinçli olarak 0.05'te; o zayıf kutular takibi ayakta tutuyor
+ama kare kare titriyor. Risk için ayrı bir eşik kondu (`min_confidence: 0.35`).
+
+**3. Asıl sebep örtülmeymiş.** Güven eşiği `#235`'i elemedi — medyan güveni
+0.42, eşiği geçiyor. Kareye bakınca gerçek sebep göründü: o araç önündeki
+Duster'ın **arkasında kısmen örtülü.** Örtülünce kutunun görünen alt kenarı
+gerçek zemin temas noktasının üstünde kalıyor, homografi de aracı olduğundan
+uzağa koyuyor (22 m raporlandı, görsel olarak ~10 m). Örtülme kare kare
+değiştiği için mesafe zıplıyor ve 14 m/s'lik uydurma bir yaklaşma hızı çıkıyor.
+
+Bu, zemine değme varsayımının bilinen kırılma noktası ve güven eşiğiyle
+çözülmez. Çözüm fit kalitesi kapısı: gerçekten yaklaşan nesnenin mesafe-zaman
+eğrisi düz bir doğrudur, örtülme artefaktı zıplar.
+
+| artık eşiği | uyarı veren izler |
+|---|---|
+| kapalı | #3(3), #6(39), **#235(13)** |
+| 0.10 | #3(3), #6(21), **#235(13)** |
+| 0.04 | #3(3), #6(21) |
+
+**Bedeli dürüstçe:** 0.04 eşiği sahte izi eliyor ama gerçek uyarının
+gözlemlerini de 39'dan 21'e düşürüyor. Uyarı yaklaşma boyunca yine çıkıyor,
+sadece daha seyrek. Sahte kritik uyarı üretmemek daha önemli sayıldı.
+
+### Tasarım kararları
+
+- **Zaman kare sayısıyla değil saniyeyle ölçülür.** İzlerin %29'u delikli;
+  iki gözlem arası 1 kare de olabilir 8 kare de. Hafta 2'de bırakılan not
+  burada kullanıldı.
+- **Hız iki noktadan değil pencereye fit edilerek çıkarılır.** Ardışık iki
+  kare arasındaki fark, kutu titremesinin yanında kaybolur.
+- **Yetersiz veride sayı üretilmez.** Kısa iz, düşük yaklaşma hızı, koridor
+  dışı, düşük güven, kötü fit — hepsinde `None`. Ekranda görünen bir sayı
+  ölçülmüş sayılır.
+
+### Sonuç
+
+400 karelik test: koridorda 6 iz, 3 uyarı, 2 kritik. En düşük TTC **1.3 s**
+(#6, 2.6 m, 2.0 m/s yaklaşıyor) — tam önümüzdeki SUV, görselde kalın kırmızı
+kutuyla işaretli. Risk katmanı kare başına **0.2 ms**.
+
+### Bilinen kısıt
+
+Koridor kapısı uzak mesafede güvenilirliğini yitiriyor: homografinin yanal
+hatası mesafeyle büyüdüğü için 20 m ötedeki bir nesnenin koridorda olup
+olmadığı kesin değil. Hafta 8'deki hata analizinde ölçülmeli.

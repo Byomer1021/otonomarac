@@ -163,6 +163,35 @@ def main() -> int:
 
         return f"yakin {near.bev_xy[1]:.1f}m < uzak {far.bev_xy[1]:.1f}m, harita {w}x{h}"
 
+    def _risk() -> str:
+        from perception.config import RiskConfig
+        from perception.detection import Detection
+        from perception.risk import RiskEstimator
+
+        estimator = RiskEstimator(RiskConfig())
+        # Sabit hizla yaklasan tek nesne: 20 m'den 2 m/s ile.
+        ttc = None
+        for step in range(12):
+            det = Detection(xyxy=(600, 400, 700, 500), conf=0.9, cls_id=2, track_id=1)
+            det.bev_xy = (0.0, 20.0 - step * 2.0 * 0.1)
+            estimator.update([det], timestamp=step * 0.1)
+            ttc = det.ttc
+
+        if ttc is None:
+            raise AssertionError("duzgun yaklasan nesne icin TTC uretilmedi")
+        # 20 m'den 2 m/s: son adimda mesafe ~17.8 m, TTC ~8.9 s beklenir.
+        if not 7.0 < ttc < 11.0:
+            raise AssertionError(f"TTC beklenen araligin disinda: {ttc:.1f}s")
+
+        # Koridor disindaki nesne risk almamali.
+        side = Detection(xyxy=(600, 400, 700, 500), conf=0.9, cls_id=2, track_id=2)
+        side.bev_xy = (6.0, 10.0)
+        estimator.update([side], timestamp=2.0)
+        if side.ttc is not None:
+            raise AssertionError("guzergah disindaki nesne icin TTC uretildi")
+
+        return f"yaklasan nesne TTC {ttc:.1f}s, koridor disi elendi"
+
     def _draw() -> str:
         from perception.detection import Detection
         from perception.visualize import draw_detections, draw_hud, draw_trails
@@ -183,6 +212,7 @@ def main() -> int:
         ("ByteTrack takip", _tracker),
         ("Depth Anything + fuzyon", _depth),
         ("Kusbakisi projeksiyon", _bev),
+        ("Hiz ve TTC", _risk),
         ("Cizim", _draw),
     ]:
         results.append(check(name, fn))

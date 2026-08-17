@@ -255,7 +255,7 @@ docs/            Proje raporu ve mühendislik günlüğü
 | 2 | ByteTrack, kimlikler, hareket izleri | **bitti** — %17 iz parçalanması |
 | 3 | Depth Anything, kutu–derinlik füzyonu | **bitti** — nesne başına göreli derinlik |
 | 4 | Homografi, kuşbakışı harita, çift panel | **bitti** — 0.1 ms/kare |
-| 5 | Göreli hız, ölçek kalibrasyonu, TTC | |
+| 5 | Göreli hız, ölçek kalibrasyonu, TTC | **bitti** — TTC ölçek-değişmez |
 | 6 | Şerit / sürülebilir alan segmentasyonu | |
 | 7 | Gradio arayüzü, Hugging Face Spaces | |
 | 8 | Dokümantasyon, hata analizi, performans tablosu | |
@@ -277,10 +277,25 @@ olduğu için ölçek belirsizdir, kalibrasyon ister. **Önce A çalışır hale
 sonra B eklenip ikisi ayrı bir bölümde karşılaştırılacak** — "iki yöntemi
 denedim, farkları şunlar" anlatısı tek yöntem sunmaktan çok daha güçlü.
 
-**Ölçek belirsizliği.** Tek kameradan mutlak mesafe ölçülemez; bu monoküler
-görünün bilinen temel kısıtı. Ölçek katsayısı sabit bir referansla kalibre
-edilecek: şerit genişliği (Türkiye'de tipik 3.5 m) veya tipik araç genişliği
-(~1.8 m). Bu varsayım ve getirdiği hata payı gizlenmeyip açıkça yazılacak.
+**Ölçek belirsizliği ve TTC'nin ondan kaçışı.** Tek kameradan mutlak mesafe
+ölçülemez. Başlangıçtaki plandan daha kötüsü: şerit veya araç genişliği gibi
+bir **yanal** referans, boylamsal ölçeği hiçbir zaman sabitleyemez — odak
+uzaklığı yanal bağıntıda sadeleşir, derinlik bağıntısında sadeleşmez:
+
+```
+X = (u − u_c) · h / (v − v_h)      ← f sadeleşir
+Z = f · h / (v − v_h)              ← f kalır
+```
+
+Yani yanal kalibrasyon kamera yüksekliğini veriyor — 107 araç örneğinde
+1.43 m, ön cam montajı için doğru aralık — ama `bev.quad_depth_m` varsayım
+olarak kalıyor. Haritadaki metre değerleri bir katsayı kadar belirsiz.
+
+**Çarpışmaya kalan süre değil.** Bütün mesafeleri bilinmeyen bir *k* ile
+çarpın, yaklaşma hızı da aynı *k* ile çarpılır; `TTC = d / v` değişmez.
+Ölçüldü: `quad_depth_m` iki katına çıkınca mesafe de iki katına çıkıyor
+(1.3 → 2.6 → 5.2 m) ama TTC üçünde de 1.29 s. Projenin en çok işe yarayan
+çıktısı, en zayıf varsayımından bağımsız çıktı.
 
 **Model eğitimi neden yok?** Hazır ağırlık kullanmak tembellik değil
 önceliklendirme. Bu projede gösterilecek asıl beceri **sistem entegrasyonu,
