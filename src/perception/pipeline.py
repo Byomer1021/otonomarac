@@ -14,11 +14,12 @@ import numpy as np
 from tqdm import tqdm
 
 from .config import Config
+from .depth import DepthEstimator, fuse, normalize_for_display
 from .detection import Detection, YOLODetector
 from .tracking import ObjectTracker
 from .utils import Profiler, describe_device
 from .video_io import Frame, VideoReader, VideoWriter
-from .visualize import draw_detections, draw_hud, draw_trails
+from .visualize import colorize_depth, draw_detections, draw_hud, draw_trails, stack_panels
 
 
 @dataclass
@@ -30,8 +31,10 @@ class FrameResult:
     detections: list[Detection] = field(default_factory=list)
     #: Kimlik atanmis nesneler. Takip kapaliysa `detections` ile aynidir.
     tracked: list[Detection] = field(default_factory=list)
-    #: iz kimligi -> gecmis zemin temas noktalari
-    trails: dict[int, list[tuple[float, float]]] = field(default_factory=dict)
+    #: iz kimligi -> gecmis (kare_no, x, y) zemin temas noktalari
+    trails: dict[int, list[tuple[int, float, float]]] = field(default_factory=dict)
+    #: Goreli ters derinlik haritasi ([0,1], buyuk = yakin). Katman kapaliysa None.
+    disparity: np.ndarray | None = None
     #: Cizim yapilmis kare (gorsellestirme kapaliysa None)
     rendered: np.ndarray | None = None
 
@@ -53,6 +56,9 @@ class PerceptionPipeline:
         self.profiler = Profiler()
         self.detector = YOLODetector(self.config.detection)
         self.tracker = ObjectTracker(self.config.tracking) if self.config.tracking.enabled else None
+        self.depth = (
+            DepthEstimator(self.config.depth, self.config.camera) if self.config.depth.enabled else None
+        )
 
     @property
     def device_label(self) -> str:
@@ -69,6 +75,15 @@ class PerceptionPipeline:
             with self.profiler.stage("takip"):
                 result.tracked = self.tracker.update(detections, frame.index)
                 result.trails = self.tracker.active_trails(result.tracked)
+
+        if self.depth is not None:
+            with self.profiler.stage("derinlik"):
+                result.disparity = self.depth.infer(frame.image, frame.index)
+            # Fuzyon ayri olculuyor: derinlik cikarimi GPU'da, fuzyon CPU'da
+            # calisiyor ve ikisini tek sayida toplamak hangisinin darbogaz
+            # oldugunu gizlerdi.
+            with self.profiler.stage("fuzyon"):
+                fuse(result.objects, result.disparity, self.config.depth, self.config.camera)
 
         return result
 
@@ -100,6 +115,20 @@ class PerceptionPipeline:
                 if fps is not None:
                     lines.insert(0, f"{fps:.1f} FPS")
                 draw_hud(canvas, lines)
+
+            if self.config.depth.show_panel and result.disparity is not None:
+                canvas = stack_panels(
+                    canvas,
+                    # Normalizasyon SADECE burada: renk haritasi icin. Hesaba
+                    # giren degerler ham disparity uzerinden uretiliyor.
+                    colorize_depth(
+                        normalize_for_display(result.disparity, self.config.camera.hood_top),
+                        self.config.depth.colormap,
+                    ),
+                    # Yon acikca yaziliyor: harita ters derinlik, yani acik
+                    # renk yakin demek. Tersini varsaymak kolay bir hata.
+                    labels=("Kamera", "Derinlik (acik = yakin, goreli)"),
+                )
 
         result.rendered = canvas
         return canvas

@@ -92,6 +92,40 @@ def main() -> int:
             raise AssertionError(f"iz gecmisi birikmedi: {trail}")
         return f"4 karede kimlik korundu (#{unique.pop()}), iz {len(trail)} nokta"
 
+    def _depth() -> str:
+        from perception.config import CameraConfig, DepthConfig
+        from perception.depth import DepthEstimator, fuse
+        from perception.detection import Detection
+
+        from perception.depth import normalize_for_display
+
+        estimator = DepthEstimator(DepthConfig(input_width=252))
+        # Sentetik gurultu yerine dikey gradyan: gercek bir sahne gibi
+        # ust-alt derinlik farki iceriyor, model anlamli bir harita uretebiliyor.
+        frame = np.tile(
+            np.linspace(20, 235, 180, dtype=np.uint8).reshape(-1, 1, 1), (1, 320, 3)
+        ).astype(np.uint8)
+        disparity = estimator.infer(frame)
+
+        if disparity.shape != frame.shape[:2]:
+            raise AssertionError(f"harita boyutu kareyle uyusmuyor: {disparity.shape} vs {frame.shape[:2]}")
+
+        shown = normalize_for_display(disparity)
+        if not (0.0 <= shown.min() and shown.max() <= 1.0):
+            raise AssertionError(f"cizim normalizasyonu [0,1] disinda: {shown.min()}..{shown.max()}")
+
+        det = Detection(xyxy=(80, 40, 200, 150), conf=0.9, cls_id=2)
+        fuse([det], disparity, DepthConfig(), CameraConfig())
+
+        # Kaput sinirinin tamamen altinda kalan kutu derinlik almamali.
+        below = Detection(xyxy=(80, 170, 200, 180), conf=0.9, cls_id=2)
+        fuse([below], disparity, DepthConfig(), CameraConfig(hood_top=0.5))
+        if below.depth is not None:
+            raise AssertionError("kaput altindaki kutu icin derinlik uretildi")
+
+        shown_depth = f"~{det.depth:.1f}" if det.depth is not None else "gecersiz (beklenebilir)"
+        return f"cihaz={estimator.device}, ham aralik {disparity.min():.2f}..{disparity.max():.2f}, ornek {shown_depth}"
+
     def _draw() -> str:
         from perception.detection import Detection
         from perception.visualize import draw_detections, draw_hud, draw_trails
@@ -110,6 +144,7 @@ def main() -> int:
         ("perception paketi", _package),
         ("YOLO tespit", _detector),
         ("ByteTrack takip", _tracker),
+        ("Depth Anything + fuzyon", _depth),
         ("Cizim", _draw),
     ]:
         results.append(check(name, fn))

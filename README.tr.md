@@ -167,6 +167,20 @@ Ayar yapmadan önce bilinmesi gereken iki bulgu:
   `0.9` "IoU ≥ 0.1 kabul" demek. 10 Hz kayıtta varsayılan 0.8 fazla dar kalıyor
   ve izleri koparıyor.
 
+### Derinlik göreli, rakamlar da bunu söylüyor
+
+Etiketlerde `~2.0` yazıyor, `2.0 m` değil. Tek kameradan mutlak mesafe
+çıkarılamaz ve birim yazmak sistemin sahip olmadığı bir kesinliği iddia ederdi.
+Değer birimsiz ve yalnızca nesneleri karşılaştırmak için anlamlı; sabit bir
+referansla ölçek kalibrasyonu Hafta 5'in işi.
+
+Saklanan harita modelin **ham** çıktısı, bilinçli olarak normalize edilmiyor.
+Her kareyi `[0,1]`'e taşımak daha iyi görünür ama değerleri kareler arası
+karşılaştırılamaz kılar — sahneye tek bir yakın nesne girdiğinde tüm haritanın
+ölçeği kayar, hiçbir şey hareket etmemiş olsa bile her nesnenin "mesafesi"
+değişir. Hız tahmini tam da o kareler arası farka dayanıyor. Normalizasyon
+sadece çizim katmanında, sadece renk haritası için yapılıyor.
+
 ### Yavaş donanım için ayarlar
 
 | Bayrak | Etkisi |
@@ -205,7 +219,7 @@ docs/            Proje raporu ve mühendislik günlüğü
 |---|---|---|
 | 1 | Depo iskeleti, video I/O, YOLO tespiti | **bitti** — GTX 1080'de 50.7 FPS |
 | 2 | ByteTrack, kimlikler, hareket izleri | **bitti** — %17 iz parçalanması |
-| 3 | Depth Anything, kutu–derinlik füzyonu | |
+| 3 | Depth Anything, kutu–derinlik füzyonu | **bitti** — nesne başına göreli derinlik |
 | 4 | Homografi, kuşbakışı harita, çift panel | |
 | 5 | Göreli hız, ölçek kalibrasyonu, TTC | |
 | 6 | Şerit / sürülebilir alan segmentasyonu | |

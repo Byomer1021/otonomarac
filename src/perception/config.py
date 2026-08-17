@@ -52,6 +52,55 @@ class DetectionConfig:
 
 
 @dataclass
+class CameraConfig:
+    """Kaynak kameraya ozgu geometri bilgileri.
+
+    Hafta 4'te homografi kaynak noktalari da buraya eklenecek.
+    """
+
+    #: Kaputun/torpidonun basladigi satir, goruntu yuksekliginin orani olarak.
+    #: Bu satirin altindaki pikseller yol degil arac ici - derinlik orneklemesi
+    #: ve zemine degme noktasi hesabi bu bolgeyi gormemeli.
+    #: Maltepe cekimi icin olculen deger: 915/1080 = 0.85. None = kaput yok.
+    hood_top: float | None = None
+
+
+@dataclass
+class DepthConfig:
+    """Monokuler derinlik tahmini (Depth Anything V2).
+
+    Model GORELI ters derinlik (disparity) uretir: buyuk deger = yakin.
+    Mutlak mesafe tek kameradan olculemez; olcek Hafta 5'te sabit bir
+    referansla kalibre edilecek.
+    """
+
+    enabled: bool = True
+    #: Small / Base / Large - hiz ve dogruluk arasindaki secim
+    model: str = "depth-anything/Depth-Anything-V2-Small-hf"
+    device: str = "auto"
+    half: bool = False
+    #: Modele verilecek tensor genisligi (14'un katina yuvarlanir).
+    #: Modelin maliyetini belirleyen asil ayar bu: 518 -> 321 ms, 294 -> 109 ms
+    #: (CPU olcumu). Nesne basina derinlik zaten kutu icinde medyan alinarak
+    #: cikarildigi icin cozunurluk dusurmenin dogruluga bedeli sinirli.
+    input_width: int = 518
+    #: Derinligi kac karede bir yeniden hesapla (1 = her kare).
+    #: Aradaki karelerde son harita yeniden kullanilir. Derinlik sahnede
+    #: tespit ve takipten cok daha yavas degisir, bu yuzden 2-3 gorsel olarak
+    #: fark ettirmeden GPU yukunu bolüyor - bu makinedeki karti ayakta tutmak
+    #: icin onemli (bkz. proje gunlugu, 18 Agustos).
+    every_n_frames: int = 1
+    #: Ornek bolgesi: kutunun ortadaki %50 genisligi, alt %25 yuksekligi.
+    #: Alt orta bolge secilir cunku nesnenin zemine degdigi yer orasidir;
+    #: kutunun ust kismi arkadaki sahneyi de kapsar.
+    sample_width_ratio: float = 0.5
+    sample_height_ratio: float = 0.25
+    #: Derinlik haritasini yan panel olarak goster
+    show_panel: bool = True
+    colormap: str = "INFERNO"
+
+
+@dataclass
 class TrackingConfig:
     """ByteTrack takip katmani ayarlari.
 
@@ -104,8 +153,10 @@ class Config:
     """Tum pipeline yapilandirmasi."""
 
     video: VideoConfig = field(default_factory=VideoConfig)
+    camera: CameraConfig = field(default_factory=CameraConfig)
     detection: DetectionConfig = field(default_factory=DetectionConfig)
     tracking: TrackingConfig = field(default_factory=TrackingConfig)
+    depth: DepthConfig = field(default_factory=DepthConfig)
     visualize: VisualizeConfig = field(default_factory=VisualizeConfig)
 
     def validate(self) -> list[str]:
@@ -128,6 +179,19 @@ class Config:
             warnings_found.append(
                 f"tracking.track_low_thresh ({self.tracking.track_low_thresh}) >= "
                 f"track_high_thresh ({self.tracking.track_high_thresh}): ikinci asama devre disi kalir."
+            )
+
+        if self.camera.hood_top is not None and not 0.0 < self.camera.hood_top <= 1.0:
+            warnings_found.append(
+                f"camera.hood_top ({self.camera.hood_top}) 0-1 arasi bir oran olmali "
+                f"(goruntu yuksekliginin kesri). Piksel degeri degil."
+            )
+
+        if self.depth.enabled and self.camera.hood_top is None:
+            warnings_found.append(
+                "camera.hood_top ayarlanmamis. Kaput goren bir cekimde kutunun alt "
+                "kenari arac icine dusebilir; o bolgenin derinligi yolu degil kaputu "
+                "olcer. Kaput gorunuyorsa oranini girin (Maltepe icin 0.85)."
             )
 
         if self.video.frame_stride > 1 and self.tracking.enabled:

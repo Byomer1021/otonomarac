@@ -168,6 +168,20 @@ Two findings worth knowing before you tune anything:
   so `0.9` means "accept IoU ≥ 0.1". On 10 Hz footage the 0.8 default is too
   strict and breaks tracks.
 
+### Depth is relative, and the numbers say so
+
+Object labels show `~2.0`, never `2.0 m`. Absolute distance is not recoverable
+from one camera, and printing a unit would claim a precision the system does not
+have. The value is unitless and only meaningful for comparing objects; scale
+calibration against a fixed reference is week 5's job.
+
+The stored depth map is the model's **raw** output, deliberately not normalised.
+Rescaling each frame to `[0,1]` looks better but makes values incomparable
+between frames — one nearby object entering the scene shifts the whole map's
+scale, so every object's "distance" changes while nothing has moved. Speed
+estimation depends on exactly that frame-to-frame difference. Normalisation
+happens only in the drawing layer, only for the colour map.
+
 ### Tuning for slow hardware
 
 | Flag | Effect |
@@ -206,7 +220,7 @@ docs/            Project report and engineering log
 |---|---|---|
 | 1 | Repo skeleton, video I/O, YOLO detection | **done** — 50.7 FPS on GTX 1080 |
 | 2 | ByteTrack integration, IDs, motion trails | **done** — 17% track fragmentation |
-| 3 | Depth Anything, box–depth fusion | |
+| 3 | Depth Anything, box–depth fusion | **done** — relative depth per object |
 | 4 | Homography, bird's-eye-view map, two-panel render | |
 | 5 | Relative speed, scale calibration, TTC | |
 | 6 | Lane / drivable-area segmentation | |

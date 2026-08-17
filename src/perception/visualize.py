@@ -62,7 +62,10 @@ def _build_label(det: Detection, cfg: VisualizeConfig) -> str:
     if cfg.show_conf:
         parts.append(f"{det.conf:.2f}")
     if det.depth is not None:
-        parts.append(f"{det.depth:.1f}m")
+        # Birim YOK. Bu deger goreli - tek kameradan mutlak mesafe olculemez.
+        # "m" yazmak kolay olurdu ama olmayan bir kesinlik iddia ederdi;
+        # olcek kalibrasyonu Hafta 5'in isi.
+        parts.append(f"~{det.depth:.1f}")
     return " ".join(parts)
 
 
@@ -157,6 +160,42 @@ def draw_trails(
             )
 
     return image
+
+
+def colorize_depth(disparity: np.ndarray, colormap: str = "INFERNO") -> np.ndarray:
+    """[0,1] araligindaki ters derinlik haritasini renkli gorsele cevirir.
+
+    Girdi disparity oldugu icin acik renkler YAKIN, koyu renkler UZAK demek.
+    Bu, "acik = uzak" beklentisinin tersi olabilir; panel basligi bu yuzden
+    yonu acikca yaziyor.
+    """
+    code = getattr(cv2, f"COLORMAP_{colormap.upper()}", cv2.COLORMAP_INFERNO)
+    return cv2.applyColorMap((np.clip(disparity, 0.0, 1.0) * 255).astype(np.uint8), code)
+
+
+def stack_panels(
+    main: np.ndarray,
+    side: np.ndarray,
+    *,
+    labels: tuple[str, str] | None = None,
+) -> np.ndarray:
+    """Iki kareyi yan yana birlestirir; sag panel solun yuksekligine olceklenir.
+
+    Hafta 4'te kusbakisi harita da bu fonksiyonla eklenecek - projenin gorsel
+    imzasi olan cift panelli cikti burada olusuyor.
+    """
+    h = main.shape[0]
+    if side.shape[0] != h:
+        scale = h / side.shape[0]
+        side = cv2.resize(side, (max(1, int(round(side.shape[1] * scale))), h), interpolation=cv2.INTER_AREA)
+
+    canvas = np.hstack([main, side])
+
+    if labels:
+        for text, x_offset in zip(labels, (0, main.shape[1])):
+            draw_hud(canvas, [text], origin=(x_offset + 12, 12), font_scale=0.5)
+
+    return canvas
 
 
 def draw_hud(

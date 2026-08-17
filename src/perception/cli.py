@@ -53,6 +53,24 @@ def build_parser() -> argparse.ArgumentParser:
         "--trail-seconds", type=float, default=None, help="Hareket izinin gecmisi, saniye (0 = kapat)"
     )
 
+    depth = parser.add_argument_group("derinlik")
+    depth.add_argument("--no-depth", action="store_true", help="Derinlik katmanini kapat")
+    depth.add_argument("--depth-model", type=str, default=None, help="Depth Anything model adi")
+    depth.add_argument("--depth-width", type=int, default=None, help="Derinlik modeli giris genisligi")
+    depth.add_argument(
+        "--depth-every",
+        type=int,
+        default=None,
+        help="Derinligi kac karede bir hesapla (1 = her kare, GPU yukunu boler)",
+    )
+    depth.add_argument("--no-depth-panel", action="store_true", help="Derinlik panelini gizle")
+    depth.add_argument(
+        "--hood-top",
+        type=float,
+        default=None,
+        help="Kaputun basladigi satir, yukseklik orani (Maltepe: 0.85)",
+    )
+
     parser.add_argument("--no-hud", action="store_true", help="Bilgi panelini gizle")
     parser.add_argument(
         "--dump-config",
@@ -81,6 +99,12 @@ def main(argv: list[str] | None = None) -> int:
             "tracking.track_buffer": args.track_buffer,
             "tracking.match_thresh": args.match_thresh,
             "tracking.trail_seconds": args.trail_seconds,
+            "camera.hood_top": args.hood_top,
+            "depth.enabled": False if args.no_depth else None,
+            "depth.model": args.depth_model,
+            "depth.input_width": args.depth_width,
+            "depth.every_n_frames": args.depth_every,
+            "depth.show_panel": False if args.no_depth_panel else None,
             "visualize.show_hud": False if args.no_hud else None,
         }
     )

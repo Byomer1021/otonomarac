@@ -8,6 +8,12 @@ video:
   max_frames: null       # hizli deneme icin ornegin 150
   resize_width: 1280
 
+camera:
+  # Kaputun/torpidonun basladigi satir, yukseklik orani olarak.
+  # Bu satirin altindaki pikseller yol degil arac ici; derinlik orneklemesi
+  # ve zemine degme noktasi oraya bakmamali. null = kaput gorunmuyor.
+  hood_top: null
+
 detection:
   # yolov8s, yolov8n'e gore parcalanmayi %44'ten %28'e dusuruyor ve GTX 1080'de
   # neredeyse bedava geliyor (56.7 -> 56.1 FPS; KITTI cozunurlugunde GPU zaten
@@ -35,6 +41,19 @@ tracking:
   fuse_score: true
   trail_seconds: 1.5        # hareket izinin gecmisi, saniye (0 = kapat)
   min_track_len: 5          # bundan kisa izler analizde "parcalanmis" sayilir
+
+depth:
+  enabled: true
+  # Small / Base / Large. Small ile basla, olcup karar ver.
+  model: depth-anything/Depth-Anything-V2-Small-hf
+  device: auto
+  half: false             # Pascal ve oncesi kartlarda FP16 daha yavas; otomatik reddedilir
+  every_n_frames: 1       # 2-3 yapmak GPU yukunu dogrudan boler
+  input_width: 518        # derinlik en pahali katman; tam cozunurluk gereksiz
+  sample_width_ratio: 0.5   # kutunun ortadaki %50 genisligi
+  sample_height_ratio: 0.25 # kutunun alt %25 yuksekligi
+  show_panel: true
+  colormap: INFERNO
 
 visualize:
   show_conf: true

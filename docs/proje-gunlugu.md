@@ -350,3 +350,139 @@ Tespit güveni belirgin daha yüksek (0.83-0.91 aralığı), çünkü görüntü
 1242×375'ine göre çok daha yüksek çözünürlüklü ve nesneler karede büyük.
 FPS düşüşü de bundan: 1280 genişlikte işlerken kare başına tespit 13.7 ms'den
 23.3 ms'e çıkıyor.
+
+---
+
+## Hafta 3 — Derinlik ve füzyon
+
+**Tarih:** 18 Ağustos 2026
+
+### Yapılanlar
+
+- `depth.py` — Depth Anything V2 sarmalayıcı, kutu-derinlik füzyonu
+- `CameraConfig` — kaput sınırı; Hafta 4'te homografi noktaları da buraya
+- `visualize.colorize_depth` / `stack_panels` — çift panelli çıktı altyapısı
+- `configs/maltepe.yaml` — kendi çekimimize özel ayarlar
+- `scripts/depth_stride_check.py` — derinlik yeniden kullanımının hata ölçümü
+
+### Donanım kısıtı: GPU ağır yük altında düşüyor
+
+**Bu haftanın en belirleyici olayı teknik bir tercih değil, donanım.**
+
+Depth Anything ölçümleri sırasında GTX 1080 **iki kez** ekran bağlantısını
+düşürdü. `nvidia-smi` çıktısı: `GPU is lost. Reboot the system to recover this
+GPU`. Her seferinde makineyi kapatıp açmak gerekti.
+
+Ayrım önemli: tespit ve takip onlarca çalıştırmada, yüzlerce kare boyunca hiç
+sorun çıkarmadı. Kartı düşüren özellikle derinlik modelinin sürekli yükü.
+
+**Karar: derinlik CPU'da çalışacak.** 321 ms/kare, `every_n_frames=3` ile
+60 saniyelik klip ~3 dakikada bitiyor — gözetimsiz çalıştırılabilir. Tespit ve
+takip GPU'da kalıyor.
+
+Bu, Hafta 1'deki "GPU var, Colab yedeğe düştü" kaydını kısmen geri alıyor.
+Yerel GPU tespit için güvenilir, ağır katmanlar için değil. Hafta 7-8'deki
+yüksek kaliteli render'lar için Colab yeniden masada.
+
+*İtiraf: ilk çöküşten sonra strateji değiştirmek yerine ölçüme devam ettim ve
+kartı ikinci kez düşürdüm. Tekrarlayan donanım hatası, parametre hatası gibi
+ele alınmamalı.*
+
+### FP16 Pascal'da tuzak
+
+Ölçüldü: derinlik modeli **FP16'da 56.5 ms, FP32'de 41.0 ms.** Yarı hassasiyet
+%38 daha yavaş. Sebep mimari — Pascal (sm_61) hızlı FP16 yoluna sahip değil.
+Üstelik çöken çalıştırma da FP16'ydı.
+
+`utils.resolve_half()` eklendi: sm_70 altındaki kartlarda FP16 isteği
+**gerekçesiyle birlikte reddediliyor**, sessizce yok sayılmıyor. Hem tespit
+hem derinlik katmanı bu kontrolden geçiyor.
+
+Hafta 1 ve 2'deki tüm `--half` çalıştırmaları geriye dönük olarak şüpheli;
+o ölçümler muhtemelen olduğundan yavaş.
+
+### `input_width` ayarım hiçbir şey yapmıyormuş
+
+CPU ölçümünde genişliği 518'den 308'e düşürmek süreyi değiştirmedi (365 → 368
+ms). Bu, ayarın uygulanmadığının işaretiydi.
+
+Sebep: HuggingFace `AutoImageProcessor` kendi `size` ayarına (518×518,
+`ensure_multiple_of=14`) göre yeniden ölçekliyor. Önceden küçültülmüş kareyi
+bile **geri büyütüyor**. Yani harici ön-ölçekleme modelin maliyetini hiç
+değiştirmiyordu.
+
+Düzeltildikten sonra (`size` processor'e açıkça verilerek) ayar gerçekten
+çalışıyor:
+
+| tensor genişliği | ms (CPU) | hızlanma |
+|---|---|---|
+| 518 | 321 | 1.00x |
+| 392 | 183 | 1.75x |
+| 294 | 109 | 2.96x |
+| 224 | 71 | 4.53x |
+
+### Tasarım hatası: kare bazlı normalizasyon
+
+İlk sürüm haritayı her karede `[0,1]`'e taşıyordu. Görsel olarak cazip ama
+**kareler arası karşılaştırmayı imkânsız kılıyor**: sahneye tek bir yakın nesne
+girdiğinde tüm haritanın ölçeği kayıyor ve hiçbir şey hareket etmemiş olsa bile
+her nesnenin "mesafesi" değişiyor.
+
+Hafta 5'teki hız çıkarımı tam da kareler arası farka dayandığı için bu kabul
+edilemez. `infer()` artık **ham** disparity döndürüyor; normalizasyon yalnızca
+çizim katmanında, yalnızca renk haritası için yapılıyor
+(`normalize_for_display`).
+
+Bu hata ölçüm sırasında ortaya çıktı: çözünürlükler arası hata oranları
+anlamsız görünüyordu, çünkü ölçtüğüm şeyin bir kısmı normalizasyon oynamasıydı.
+
+### Ham disparity negatif olabiliyor
+
+Ölçülen aralık: **-0.30 .. 10.41**. `1/d` orada anlamlı bir mesafe üretemez.
+
+`relative_distance()` artık geçersiz disparity için `None` döndürüyor. Tabana
+kırpıp devasa bir sayı üretmek daha kolaydı ama o sayı ölçülmüş gibi görünürdü.
+
+### Çözünürlük düşürmenin gerçek bedeli
+
+Ham değerler çözünürlükler arası doğrudan karşılaştırılamıyor (modelin çıktı
+ölçeği girdi boyutuna bağlı). Bu yüzden ölçekten bağımsız bir ölçüt kullanıldı:
+**kare içinde nesne sıralamasının Spearman korelasyonu.**
+
+| genişlik | Spearman (ort) | en kötü kare |
+|---|---|---|
+| 392 | **0.917** | 0.798 |
+| 294 | 0.757 | 0.226 |
+| 224 | 0.661 | 0.305 |
+
+392 güvenli ve iki kat hızlı. 294'te sıralama bozuluyor — oraya inilmemeli.
+Varsayılan 518'de bırakıldı (referans kalite, CPU'da maliyeti kabul edilebilir).
+
+### Küçük kazanç: büyütmeyi cv2 yapıyor
+
+Haritayı kare boyutuna geri büyütmek torch bicubic ile 8.9 ms, `cv2.INTER_CUBIC`
+ile 1.3 ms. İki sonuç arasındaki fark maksimum %0.001. Yedi kat hızlı, aynı çıktı.
+
+### Sonuç
+
+| Aşama | ms/kare |
+|---|---|
+| derinlik (CPU, her 3 karede bir) | 134.4 |
+| tespit (GPU) | 21.2 |
+| çizim (çift panel) | 20.2 |
+| takip | 2.5 |
+| füzyon | 0.7 |
+| **uçtan uca** | **197.7 (5.1 FPS)** |
+
+Nesne derinlikleri fiziksel olarak doğru sıralanıyor: en yakın kamyonet `~0.2`,
+sonra `~0.5`, `~0.8`, `~1.1`, en uzak araç `~2.0`. Hafta 3'ün asıl doğrulaması
+buydu — mutlak değer değil, sıralamanın tutarlılığı.
+
+### Sonraki hafta için not
+
+Kaput sınırı (`camera.hood_top = 0.85`) zaten ölçülü ve config'de. Hafta 4'te
+homografi kaynak noktaları bu sınırın **üstünden** seçilmeli; alt kenarı
+sınırın altına düşen tespitlerin zemine değme noktası da geçersiz sayılmalı.
+
+Ölçek belirsizliği hâlâ açık: `relative_distance` birimsiz. Hafta 5'te şerit
+genişliği (3.5 m) referansıyla kalibre edilecek.

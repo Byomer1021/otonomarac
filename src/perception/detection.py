@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from .config import DetectionConfig
-from .utils import resolve_device
+from .utils import resolve_device, resolve_half
 
 if TYPE_CHECKING:
     from ultralytics import YOLO
@@ -110,10 +110,11 @@ class YOLODetector:
         self.model: YOLO = YOLO(self.config.model)
         self.model.to(self.device)
 
-        # Yari hassasiyet sadece CUDA'da anlamli. Ultralytics 8.4 ile `half`
-        # bayragi `quantize` altinda birlestirildi (16 = FP16, None = FP32);
-        # eski adi gecirmek deprecation uyarisi bastiriyor.
-        self._quantize = 16 if (self.config.half and self.device.startswith("cuda")) else None
+        # Ultralytics 8.4 ile `half` bayragi `quantize` altinda birlestirildi
+        # (16 = FP16, None = FP32); eski adi gecirmek deprecation uyarisi
+        # bastiriyor. resolve_half ayrica donanimi denetliyor - Pascal'da FP16
+        # daha yavas oldugu icin istek reddediliyor.
+        self._quantize = 16 if resolve_half(self.config.half, self.device, layer="tespit") else None
 
         self.warmup()
 

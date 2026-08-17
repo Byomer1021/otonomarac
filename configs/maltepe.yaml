@@ -1,0 +1,74 @@
+# Kendi cekimimiz (Maltepe, Istanbul) icin ayarlar.
+# configs/default.yaml'dan farkli olan her sey burada gerekcesiyle duruyor.
+#
+# Kaynak: 2560x1440 / 59.94 fps / VP9, klipler 1920x1080 / 30 fps H.264'e cevrildi.
+
+video:
+  input: null
+  output: outputs/maltepe.mp4
+  frame_stride: 1
+  max_frames: null
+  resize_width: 1280
+
+camera:
+  # Olculdu: silecek ve torpido y=915'te basliyor (1080 piksellik karede),
+  # y=940 altinda tamamen arac ici. 915/1080 = 0.847.
+  # Izgara bindirilip elle okundu; zamansal varyans yeterince keskin ayrim
+  # vermedi cunku kaputta yansima oynuyor.
+  hood_top: 0.85
+
+detection:
+  model: yolov8s.pt
+  conf: 0.05
+  iou: 0.5
+  imgsz: 640
+  device: auto
+  classes: [0, 1, 2, 3, 5, 7, 9]
+  # GTX 1080 (sm_61) hizli FP16 desteklemiyor - istense de reddedilir.
+  half: false
+
+tracking:
+  enabled: true
+  track_high_thresh: 0.25
+  track_low_thresh: 0.1
+  new_track_thresh: 0.25
+  track_buffer: 30
+  # 30 fps'te de gevsek esik kazandi (0.7 -> %55, 0.8 -> %23, 0.9 -> %16
+  # parcalanma). Belirleyici olan kare hizi degil nesne olcegi: sehir icinde
+  # yakin araclar karede buyuk ve kutu boyutu kare kare oynuyor.
+  match_thresh: 0.9
+  fuse_score: true
+  trail_seconds: 1.5
+  min_track_len: 5
+
+depth:
+  enabled: true
+  model: depth-anything/Depth-Anything-V2-Small-hf
+  # DERINLIK CPU'DA. Bu makinedeki GTX 1080 derinlik modelinin surekli yuku
+  # altinda iki kez ekran baglantisini dusurdu ve makineyi yeniden baslatmak
+  # gerekti. Tespit ve takip GPU'da onlarca calistirmada sorunsuz; kartı
+  # dusuren ozellikle bu katman. CPU'da 321 ms/kare, every_n_frames=3 ile
+  # 60 saniyelik klip ~3 dakikada bitiyor - gozetimsiz calistirilabilir.
+  device: cpu
+  # FP16 zaten reddedilirdi: sm_61'de hizli FP16 yolu yok, olculdu (56.5 ms'e
+  # karsi 41.0 ms) ve coken calistirma da FP16'ydi.
+  half: false
+  # Derinlik sahnede tespit ve takipten cok daha yavas degisir; 3 karede bir
+  # hesaplayip aradakilerde son haritayi kullanmak maliyeti ucte bire indiriyor.
+  every_n_frames: 3
+  # 518 referans kalite. 392 yaklasik iki kat hizli ve kare ici nesne
+  # siralamasini buyuk olcude koruyor (Spearman 0.92); 294'te siralama
+  # bozuluyor (0.76, en kotu karede 0.23) - oraya inilmemeli.
+  input_width: 518
+  sample_width_ratio: 0.5
+  sample_height_ratio: 0.25
+  show_panel: true
+  colormap: INFERNO
+
+visualize:
+  show_conf: true
+  show_class_name: true
+  show_hud: true
+  show_trails: true
+  line_thickness: 2
+  font_scale: 0.5

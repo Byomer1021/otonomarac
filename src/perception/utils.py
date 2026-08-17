@@ -32,6 +32,36 @@ def describe_device(device: str) -> str:
         return device
 
 
+def resolve_half(requested: bool, device: str, *, layer: str) -> bool:
+    """FP16 istegini donanima gore onaylar ya da gerekcesiyle reddeder.
+
+    Pascal (sm_61) ve oncesi kartlarda hizli FP16 yolu yoktur: yari
+    hassasiyet FP32'den yavas calisir. Bu makinede olculdu - Depth Anything
+    icin 56.5 ms'e karsi 41.0 ms - ve FP16 calistirmasi surucuyu dusurup
+    GPU'yu kaybettirdi (bkz. proje gunlugu, 18 Agustos).
+
+    Istek sessizce yok sayilmiyor; kullanici neden reddedildigini goruyor.
+    """
+    if not requested or not device.startswith("cuda"):
+        return False
+
+    try:
+        import torch
+
+        major, minor = torch.cuda.get_device_capability(0)
+        name = torch.cuda.get_device_name(0)
+    except Exception:
+        return False
+
+    if major < 7:
+        print(
+            f"UYARI: {layer} icin FP16 istendi ama {name} (sm_{major}{minor}) hizli FP16 "
+            f"desteklemiyor; bu mimaride yari hassasiyet FP32'den yavas calisir. FP32'ye dusuluyor.\n"
+        )
+        return False
+    return True
+
+
 class Profiler:
     """Asama bazli sure toplayici.
 
