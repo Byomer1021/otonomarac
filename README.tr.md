@@ -257,18 +257,25 @@ gösterir.
 
 ### Hugging Face Spaces'e yükleme
 
-Spaces yalnızca `requirements.txt` okuduğu için arayüz bağımlılığı oraya
-katılmalı:
+Bir kez giriş yap, sonra betiği çalıştır:
 
 ```bash
-huggingface-cli repo create otonomarac --type space --space_sdk gradio
-git clone https://huggingface.co/spaces/<kullanici>/otonomarac space && cd space
-cp -r ../{app.py,src,configs,examples} .
-cp ../docs/spaces-README.md README.md          # Spaces frontmatter'i
-printf 'gradio>=4.44
-' | cat ../requirements.txt - > requirements.txt
-git add -A && git commit -m "Deploy" && git push
+hf auth login                      # token: huggingface.co/settings/tokens (Write)
+python scripts/deploy_space.py     # <kullanici>/otonomarac olusturur ve yukler
 ```
+
+`--dry-run` yüklemeyi Hub'a dokunmadan hazırlar; tam olarak neyin gideceğini
+görebilirsin (20 dosya, 1.8 MB — kaynaklar, config'ler, arayüz ve örnek klip;
+veri ve çıktı yok).
+
+Betik Space'in `requirements.txt` dosyasını kopyalamak yerine **üretiyor**, iki
+sebeple. Depodaki dosya torch'u bilinçli olarak dışarıda bırakıyor çünkü doğru
+tekerlek makineye bağlı; olduğu gibi bırakılsaydı Space'te pip torch'u
+ultralytics üzerinden çözer ve **CUDA** yapısını çekerdi — CPU-only bir
+konteynere birkaç gigabayt. Üretilen dosya CPU tekerleğini açıkça istiyor.
+Ayrıca `sdk_version` yerelde kurulu gradio'dan yazılıyor, böylece Space
+uygulamanın gerçekten test edildiği sürümle ayağa kalkıyor; elle tutulan bir
+sürüm numarası kaçınılmaz olarak kayar.
 
 Model ağırlıkları ilk çalıştırmada indiği için ilk istek yukarıdaki
 sürelerden uzun sürer.

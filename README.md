@@ -259,17 +259,25 @@ example has a real calibration, so it shows the map too.
 
 ### Deploying to Hugging Face Spaces
 
-Spaces reads only `requirements.txt`, so the app dependency has to be folded in:
+Authenticate once, then run the deploy script:
 
 ```bash
-huggingface-cli repo create otonomarac --type space --space_sdk gradio
-git clone https://huggingface.co/spaces/<user>/otonomarac space && cd space
-cp -r ../{app.py,src,configs,examples} .
-cp ../docs/spaces-README.md README.md          # Spaces frontmatter
-printf 'gradio>=4.44
-' | cat ../requirements.txt - > requirements.txt
-git add -A && git commit -m "Deploy" && git push
+hf auth login                      # token from huggingface.co/settings/tokens (Write)
+python scripts/deploy_space.py     # creates <user>/otonomarac and uploads
 ```
+
+`--dry-run` stages the upload without touching the Hub, so you can inspect
+exactly what would be sent (20 files, 1.8 MB — sources, configs, the app and the
+example clip; no data or outputs).
+
+The script generates the Space's `requirements.txt` rather than copying this
+repo's, for two reasons. The repo file deliberately omits torch because the
+right wheel depends on the machine; left as-is, pip on the Space would resolve
+torch through ultralytics and pull the **CUDA** build — several gigabytes onto a
+CPU-only container. The generated file asks for the CPU wheel explicitly. It also
+writes `sdk_version` from the locally installed gradio, so the Space starts on
+the version the app was actually tested against instead of a hand-maintained
+number that drifts.
 
 Model weights download on first run, so the first request is slower than the
 timings above.
