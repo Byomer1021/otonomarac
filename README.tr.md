@@ -371,8 +371,17 @@ tespit 890'dan 330'a düşüyor, kullanılabilir zemin konumu %20'den %55'e
 şehrin 110 izine karşı 5 iz var, ama delikli iz oranı %25'e karşı sıfır —
 arkasına saklanacak bir şey olmadığı için hiçbir iz kaybolup geri gelmiyor.
 
-Çalışmadığı değil, denenmediği için bilinmeyenler: gece, yağmur ve sis (çekimde
-yok), ve eğimli yol (Maltepe düz, düzlem varsayımı hiç zorlanmadı).
+**Yağmur tespiti bozmuyor, görüş mesafesi bozuyor.** İkinci bir çekim —
+İstanbul'da sağanak — açık yolda medyan güveni 0.75 veriyor, kuru şehir
+klibinin 0.63'ünün *üstünde*, çünkü otoyoldaki araçlar şehir trafiğinden büyük
+ve seyrek. Kontrollü karşılaştırma aynı sürüşün içinde: sis bastırdıkça medyan
+güven 0.75 → 0.57, parçalanma %19 → %31, medyan iz uzunluğu 16 kareden 9'a
+iniyor. Yağmurun asıl bedeli süreklilikte — ıslak yolda delikli iz oranı %42,
+kuruda %23, ve hız çıkarımı tam da buna duyarlı.
+
+Çalışmadığı değil, denenmediği için bilinmeyenler: gece (iki kayıt da gündüz) ve
+eğimli yol (Maltepe düz, düzlem varsayımı hiç zorlanmadı). Yağmur kaydının
+kamerası kalibre edilmedi, o yüzden oradaki kuşbakışı harita ve TTC ölçülmedi.
 
 ### Performans
 

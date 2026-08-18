@@ -955,3 +955,30 @@ da betikte duruyor (`--hardware zero-a10g`).
 | 7 | Yayınlama | CPU'da 342 → 121 ms/kare |
 | 8 | Hata analizi | Dört ölçüm, bir düzeltme |
 
+### Ek — yağmur testi yapıldı
+
+Hafta 8 kapanışında "gece, yağmur, sis test edilmedi, çekimde o koşullar yok"
+diye yazmıştım. Yanlıştı: makinede ikinci bir kayıt vardı
+(`istabul yagmur.mkv`, 3840×2160, 18.6 dakika, sağanak). İlk taramamda yol
+genişletme hatası yüzünden dosyayı göremedim.
+
+İki klip kesildi: açık yağmurlu otoyol ve sisli bölüm. Kadraj Maltepe'den
+farklı — kaput görüntünün alt %3'ünü kaplıyor, Maltepe'de %15 — bu yüzden
+homografi taşınmadı ve o kayıtta kuşbakışı ile TTC ölçülmedi. Tespit ve takip
+kameradan bağımsız olduğu için karşılaştırılabildi.
+
+Bulgu beklediğimden nüanslı çıktı: **yağmurun kendisi tespiti bozmuyor.** Açık
+yolda medyan güven 0.75, kuru şehir sahnesinin 0.63'ünden yüksek — sebep hava
+değil sahne, otoyolda araçlar büyük ve seyrek.
+
+Bozulan iki şey var. **Görüş mesafesi**: aynı sürüşün içinde sis bastırınca
+medyan güven 0.75 → 0.57, parçalanma %19 → %31, medyan iz 16 → 9 kare. Ve
+**süreklilik**: ıslak yolda delikli iz oranı %42, kuruda %23 — tespit güveni
+yüksek olmasına rağmen izler kaybolup geri geliyor (silecek, damla, yansıma).
+
+Bu ayrım önemli çünkü iki farklı katmanı vuruyor: görüş mesafesi tespiti,
+süreklilik ise hız ve TTC hesabını.
+
+`failure_analysis.py` artık sahne tablosuyla çalışıyor; her sahnenin kendi
+`hood_top` değeri ve kuşbakışının açık olup olmadığı tabloda tanımlı.
+

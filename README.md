@@ -372,8 +372,18 @@ rural raw detections fall from 890 to 330 and usable ground positions rise from
 has 5 tracks against the city's 110, yet zero gapped tracks against 25% — with
 nothing to hide behind, no track is ever lost and re-found.
 
-Untested rather than working: night, rain and fog (the footage has none), and
-sloped roads (Maltepe is flat, so the flat-plane assumption was never stressed).
+**Rain does not break detection; visibility does.** A second recording — heavy
+rain in Istanbul — puts median confidence on the open road at 0.75, *above* the
+0.63 of the dry city clip, because motorway vehicles are larger and better
+separated than city traffic. The controlled comparison is within that same
+drive: as mist closes in, median confidence falls 0.75 → 0.57, fragmentation
+rises 19% → 31%, and median track length halves from 16 frames to 9. Rain's real
+cost is continuity — gapped tracks reach 42% on the wet road against 23% dry,
+which is exactly what speed estimation is sensitive to.
+
+Untested rather than working: night (both recordings are daytime), and sloped
+roads (Maltepe is flat, so the flat-plane assumption was never stressed). The
+rain camera was not calibrated, so its bird's-eye map and TTC are unmeasured.
 
 ### Performance
 

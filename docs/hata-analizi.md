@@ -153,6 +153,39 @@ nesnelerin birbirini örtmesinden geliyor.**
 
 ---
 
+## 6. Hava koşulu — yağmur ve sis
+
+İkinci bir çekim eklendi: **İstanbul, sağanak yağmur** (3840×2160, 18.6 dakika).
+Farklı kadraj — kaput görüntünün alt %3'ünü kaplıyor, Maltepe'de %15 — bu yüzden
+homografi taşınmıyor ve o klipte kuşbakışı harita ile TTC ölçülmüyor. Tespit ve
+takip kameradan bağımsız çalıştığı için karşılaştırılabiliyor.
+
+| Sahne | nesne/kare | medyan güven | >0.5 oranı | kimlik | medyan iz | parçalanma | delikli |
+|---|---|---|---|---|---|---|---|
+| kuru şehir | 12.4 | 0.63 | 66% | 88 | 21 | 19% | 23% |
+| kuru kırsal | 0.7 | 0.87 | 76% | 3 | 44 | 33% | 0% |
+| yağmur, açık yol | 8.0 | **0.75** | 80% | 53 | 16 | 19% | **42%** |
+| yağmur, sisli | 6.6 | **0.57** | 66% | 65 | **9** | **31%** | 25% |
+
+**Yağmurun kendisi tespiti bozmuyor.** Açık yolda medyan güven 0.75 — kuru şehir
+sahnesinden (0.63) daha yüksek. Sebep hava değil sahne: otoyolda araçlar büyük
+ve seyrek, şehirde küçük ve iç içe.
+
+**Görüş mesafesi bozuyor.** Kontrollü karşılaştırma son iki satır: aynı kamera,
+aynı sürüş, tek değişen sis. Medyan güven **0.75 → 0.57**, parçalanma
+**%19 → %31**, medyan iz uzunluğu **16 → 9 kare** — izler yarı yarıya kısalıyor.
+
+**Yağmurun asıl bedeli süreklilikte.** Açık yağmurlu yolda delikli iz oranı
+**%42**, kuru şehirde %23. Tespit güveni yüksek olmasına rağmen izler kaybolup
+geri geliyor. Muhtemel sebepler: silecek geçişleri, cama düşen damlalar, ıslak
+zeminden gelen yansımalar. Bu, TTC hesabını doğrudan etkiler — hız çıkarımı
+gözlemler arası boşluğa duyarlı.
+
+**Ders:** "yağmurda çalışır mı" yanlış soru. Yağmur tespiti bozmuyor, **görüş
+mesafesi** bozuyor ve **süreklilik** bozuluyor. İkisi farklı katmanları vuruyor.
+
+---
+
 ## Bilinen ve çözülmemiş kısıtlar
 
 - **Boylamsal ölçek belirsiz.** Yanal ölçek araç genişliğiyle kalibre edildi
@@ -170,9 +203,12 @@ nesnelerin birbirini örtmesinden geliyor.**
   20 m ötedeki bir nesnenin güzergâhta olup olmadığı kesin değil. Bölüm 2'deki
   tablo bunun büyüklüğünü veriyor.
 
-- **Tek koşulda ölçüldü.** Bütün rakamlar güneşli, gündüz, kuru yol. Gece,
-  yağmur ve sis test edilmedi — çekimde o koşullar yok. Ön rapor BDD100K'yı
-  dayanıklılık testi için işaretlemişti; yapılmadı ve bu bir eksik.
+- **Gece test edilmedi.** Yağmur ve sis ölçüldü (bölüm 6) ama elimizdeki iki
+  çekimin ikisi de gündüz. Gece kaydı alınırsa aynı tablo üretilebilir.
+
+- **Yağmur kaydında kuşbakışı ölçülmedi.** O kamera kalibre edilmedi; taşınan
+  yalnızca tespit ve takip metrikleri. Homografi çıkarılırsa harita ve TTC de
+  karşılaştırılabilir.
 
 - **Yol düzlem varsayılıyor.** Homografi eğim ve tümsekte bozulur. Maltepe
   çekiminde belirgin eğim yok, yani bu kısıt **test edilmedi** — çalışmadığı

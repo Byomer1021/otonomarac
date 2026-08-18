@@ -46,6 +46,18 @@ BANDS = [(0, 8), (8, 15), (15, 25), (25, 40)]
 #: Bir kutunun ortulu sayilmasi icin daha yakin bir kutuyla asgari ortusme.
 OCCLUSION_IOU = 0.15
 
+#: Sahne tablosu: ad -> (dosya, hood_top, kusbakisi_acik_mi).
+#: hood_top sahneye ozel cunku yagmur kaydi baska bir kadrajdan geliyor -
+#: kaput orada goruntunun yalnizca alt %3'unu kapliyor, Maltepe'de %15.
+#: Kusbakisi ve risk yalnizca kalibrasyonu olculmus kamerada acik; yagmur
+#: kaydinin homografisi cikarilmadi, o yuzden orada tespit ve takip olculuyor.
+SCENES = {
+    "kuru sehir": ("data/maltepe_city.mp4", 0.85, True),
+    "kuru kirsal": ("data/maltepe_rural.mp4", 0.85, True),
+    "yagmur yol": ("data/rain_highway.mp4", 0.96, False),
+    "yagmur sis": ("data/rain_fog.mp4", 0.96, False),
+}
+
 FUNNEL = [
     ("ham_tespit", "ham tespit"),
     ("kimlik_alan", "kimlik atandi"),
@@ -128,19 +140,29 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--config", type=Path, default=Path("configs/maltepe.yaml"))
     parser.add_argument("--frames", type=int, default=400)
-    parser.add_argument("--city", type=Path, default=Path("data/maltepe_city.mp4"))
-    parser.add_argument("--rural", type=Path, default=Path("data/maltepe_rural.mp4"))
+    parser.add_argument(
+        "--only", type=str, default=None,
+        help="Virgulle ayrilmis sahne adlari: " + ", ".join(SCENES),
+    )
     args = parser.parse_args(argv)
 
     base = Config.load(args.config)
     scenes = {}
-    for label, path in (("sehir ici", args.city), ("kirsal", args.rural)):
+    selected = args.only.split(",") if args.only else list(SCENES)
+    for label in selected:
+        if label not in SCENES:
+            raise SystemExit(f"Bilinmeyen sahne: {label}. Secenekler: {', '.join(SCENES)}")
+        name, hood, use_bev = SCENES[label]
+        path = Path(name)
         if not path.is_file():
             print(f"atlaniyor - dosya yok: {path}")
             continue
         cfg = Config()
         cfg.video = replace(base.video, input=str(path), max_frames=args.frames)
-        cfg.camera = replace(base.camera)
+        cfg.camera = replace(
+            base.camera, hood_top=hood,
+            road_quad=base.camera.road_quad if use_bev else None,
+        )
         cfg.detection = replace(base.detection)
         cfg.tracking = replace(base.tracking)
         # Derinlik ve segmentasyon bu analizin sonuclarini etkilemiyor ve
@@ -148,8 +170,8 @@ def main(argv: list[str] | None = None) -> int:
         # saniyeler suruyor.
         cfg.depth = replace(base.depth, enabled=False)
         cfg.segmentation = replace(base.segmentation, enabled=False)
-        cfg.bev = replace(base.bev)
-        cfg.risk = replace(base.risk)
+        cfg.bev = replace(base.bev, enabled=use_bev)
+        cfg.risk = replace(base.risk, enabled=use_bev)
         cfg.visualize = replace(base.visualize)
         print(f"{label} isleniyor ({path.name}, {args.frames} kare)...", flush=True)
         scenes[label] = analyse(path, cfg, args.frames)
