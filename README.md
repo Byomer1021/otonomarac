@@ -229,6 +229,53 @@ scale ambiguity, stated plainly rather than hidden behind a number.
 
 ---
 
+## Live demo
+
+A Gradio interface runs the whole stack on an uploaded clip:
+
+```bash
+pip install -r requirements-app.txt
+python app.py
+```
+
+It is built for the free CPU tier, so it does not pretend to be real-time: a
+clip goes in, the first 15 seconds are processed offline, the annotated video
+and a measurement report come back.
+
+**Tuning for CPU is measured, not guessed.** Dropping to `yolov8n` at 480 px,
+processing at 960 px wide, and recomputing depth every 5 frames and segmentation
+every 10 takes the pipeline from 342 ms/frame to 121 ms — a 15-second clip
+finishes in about a minute. One result worth recording: restricting torch to two
+threads instead of six changed almost nothing, so at these model sizes the
+bottleneck is per-operation overhead rather than parallel compute. Full settings
+and reasoning: [configs/spaces.yaml](configs/spaces.yaml).
+
+**The bird's-eye map stays off for uploaded video.** A homography needs four
+points on the road plane, specific to the camera and how it is mounted, and that
+information does not exist for a stranger's clip. Shipping a plausible-looking
+default would produce distances that read as measured and are not. Detection,
+tracking and depth are camera-agnostic and run on anything; the bundled Maltepe
+example has a real calibration, so it shows the map too.
+
+### Deploying to Hugging Face Spaces
+
+Spaces reads only `requirements.txt`, so the app dependency has to be folded in:
+
+```bash
+huggingface-cli repo create otonomarac --type space --space_sdk gradio
+git clone https://huggingface.co/spaces/<user>/otonomarac space && cd space
+cp -r ../{app.py,src,configs,examples} .
+cp ../docs/spaces-README.md README.md          # Spaces frontmatter
+printf 'gradio>=4.44
+' | cat ../requirements.txt - > requirements.txt
+git add -A && git commit -m "Deploy" && git push
+```
+
+Model weights download on first run, so the first request is slower than the
+timings above.
+
+---
+
 ## Layout
 
 ```
@@ -260,7 +307,7 @@ docs/            Project report and engineering log
 | 4 | Homography, bird's-eye-view map, two-panel render | **done** — 0.1 ms/frame |
 | 5 | Relative speed, scale calibration, TTC | **done** — TTC is scale-invariant |
 | 6 | Lane / drivable-area segmentation | **done** — visible free space on the map |
-| 7 | Gradio UI, Hugging Face Spaces deploy | |
+| 7 | Gradio UI, Hugging Face Spaces deploy | **done** — 342 → 121 ms/frame on CPU |
 | 8 | Documentation, failure analysis, performance table | |
 
 The rule: **every week ends with something that runs.** The next layer starts

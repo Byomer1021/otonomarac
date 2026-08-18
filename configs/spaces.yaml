@@ -1,0 +1,104 @@
+# Hugging Face Spaces (ucretsiz CPU katmani) icin ayarlar.
+#
+# Ucretsiz katman 2 vCPU veriyor ve GPU yok - tespit dahil her sey CPU'da.
+# Olculdu (2 is parcacigina sinirlandirilmis, bu makinede):
+#   mevcut yerel ayarlar   342 ms/kare   2.9 FPS
+#   asagidaki ayarlar      121 ms/kare   8.3 FPS
+# 15 saniyelik bir klip yaklasik 1 dakikada bitiyor.
+#
+# Ilginc bulgu: 2 is parcacigi ile 6 arasinda kayda deger fark yok. Bu
+# boyutlardaki modellerde darbogaz paralel hesap degil, islem basi ek yuk.
+
+video:
+  input: null
+  output: outputs/spaces.mp4
+  frame_stride: 1
+  max_frames: null
+  # 1280 yerine 960: tespit suresini degistirmiyor ama cizim ve I/O yukunu
+  # dusuruyor, cikti dosyasi da kuculuyor.
+  resize_width: 960
+
+camera:
+  # Yuklenen video icin bilinmiyor - arayuz bunu acikca soyluyor ve
+  # kusbakisi harita kapali kaliyor. Ornek video icin app.py dolduruyor.
+  hood_top: null
+  road_quad: null
+
+detection:
+  # yolov8s -> yolov8n ve imgsz 640 -> 480: CPU'da 127 ms'ten 43 ms'e.
+  # Takip parcalanmasi bir miktar artiyor ama demo icin kabul edilebilir.
+  model: yolov8n.pt
+  conf: 0.05
+  iou: 0.5
+  imgsz: 480
+  device: cpu
+  classes: [0, 1, 2, 3, 5, 7, 9]
+  half: false
+
+tracking:
+  enabled: true
+  track_high_thresh: 0.25
+  track_low_thresh: 0.1
+  new_track_thresh: 0.25
+  track_buffer: 30
+  match_thresh: 0.9
+  fuse_score: true
+  trail_seconds: 1.5
+  min_track_len: 5
+
+depth:
+  enabled: true
+  model: depth-anything/Depth-Anything-V2-Small-hf
+  device: cpu
+  half: false
+  # 518 -> 392: kare ici nesne siralamasi buyuk olcude korunuyor
+  # (Spearman 0.92, Hafta 3 olcumu), maliyet yariya iniyor.
+  input_width: 392
+  every_n_frames: 5
+  sample_width_ratio: 0.5
+  sample_height_ratio: 0.25
+  show_panel: false
+  colormap: INFERNO
+
+segmentation:
+  enabled: true
+  model: nvidia/segformer-b0-finetuned-cityscapes-1024-1024
+  device: cpu
+  half: false
+  input_width: 512
+  every_n_frames: 10
+  close_kernel: 5
+  show_lane_paint: true
+
+bev:
+  # Kalibrasyon olmadan anlamli calismaz; app.py yalnizca ornek video icin aciyor.
+  enabled: false
+  quad_width_m: 3.84
+  quad_depth_m: 12.0
+  range_ahead_m: 35.0
+  range_side_m: 12.0
+  px_per_m: 12.0
+  grid_step_m: 5.0
+  max_range_m: 40.0
+
+risk:
+  # Risk zemin konumuna dayaniyor: BEV kapaliyken zaten hesaplanamaz.
+  enabled: true
+  min_observations: 5
+  history_seconds: 1.2
+  ttc_critical_s: 2.0
+  ttc_warning_s: 4.0
+  ttc_max_s: 10.0
+  min_closing_speed: 0.5
+  path_half_width_m: 1.7
+  min_distance_m: 2.0
+  min_confidence: 0.35
+  max_fit_residual_ratio: 0.04
+
+visualize:
+  show_conf: true
+  show_class_name: true
+  show_hud: true
+  show_trails: true
+  line_thickness: 2
+  font_scale: 0.5

@@ -789,3 +789,78 @@ sorun çıkarmadı.
 4.5 FPS canlı demo için fazla yavaş. Hafta 7'de Hugging Face Spaces ücretsiz
 CPU katmanında çalışacak, yani tespit de CPU'ya inecek. Oradaki asıl kaldıraç
 `every_n_frames` ve çözünürlük; ölçüm zaten var, tahmin gerekmiyor.
+
+---
+
+## Hafta 7 — Yayınlama
+
+**Tarih:** 19 Ağustos 2026
+
+### Yapılanlar
+
+- `app.py` — Gradio arayüzü, çevrimdışı işleme
+- `configs/spaces.yaml` — ücretsiz CPU katmanı için ayarlanmış config
+- `examples/maltepe.mp4` — kalibrasyonu bilinen 10 saniyelik örnek (1.7 MB)
+- `docs/spaces-README.md` — Spaces frontmatter'ı
+
+### CPU ayarları ölçüldü
+
+Ücretsiz katmanda GPU yok; tespit de CPU'ya iniyor.
+
+| Ayar | ms/kare | FPS |
+|---|---|---|
+| mevcut yerel ayarlar | 342 | 2.9 |
+| yolov8n + imgsz 480 | 240 | 4.2 |
+| + genişlik 960 | 222 | 4.5 |
+| + derinlik 392, her 5 karede | 170 | 5.9 |
+| + segmentasyon 512, her 10 karede | **126** | **7.9** |
+
+15 saniyelik klip yaklaşık bir dakikada bitiyor.
+
+### Beklenmedik bulgu: iş parçacığı sayısı önemsiz
+
+Spaces 2 vCPU veriyor, bu makinede 12 mantıksal çekirdek var. Gerçekçi bir
+tahmin için torch'u 2 iş parçacığına sınırlayıp tekrar ölçtüm.
+
+**Fark neredeyse yok: 121 ms'e karşı 126 ms.** Beklentim belirgin bir yavaşlama
+yönündeydi. Bu model boyutlarında (yolov8n@480, SegFormer-b0@512,
+Depth-Anything-Small@392) darboğaz paralel hesap değil, işlem başı ek yük.
+
+Pratik sonucu: Spaces tahminini "çekirdek sayısı oranında yavaşlar" diye
+kurmak yanlış olurdu.
+
+### Karar: yüklenen video için kuşbakışı harita kapalı
+
+Homografi, kameraya ve montaja özgü dört nokta ister. Bir ziyaretçinin
+yüklediği klip için o bilgi yok.
+
+Makul görünen genel bir dörtgen koymak mümkündü ve demo daha zengin görünürdü.
+Yapılmadı: o dörtgen, ölçülmüş gibi okunan ama ölçülmemiş mesafeler üretirdi —
+projenin baştan beri kaçındığı şey tam olarak bu. Arayüz bunu gerekçesiyle
+yazıyor ve kendi videosu için kalibrasyon komutunu veriyor.
+
+Tespit, takip ve derinlik kameradan bağımsız olduğu için her videoda çalışıyor.
+Depodaki Maltepe örneğinin gerçek kalibrasyonu var, harita orada açılıyor.
+
+### İki çıktı hatası
+
+**Rapor "0 kare" diyordu.** `kare_toplam` sayacı `pipeline.run()` içinde
+artıyor; arayüz `process_frame` + `render` çağırdığı için hiç artmıyordu.
+Sayım arayüze taşındı.
+
+**Çıktı 10 saniye için 18.45 MB'tı.** `VideoWriter` mp4v (MPEG-4 Part 2)
+yazıyor — hem şişkin hem de tarayıcıların çoğu oynatmıyor, yani Gradio'nun
+oynatıcısında boş kutu görünürdü. H.264'e yeniden kodlama eklendi:
+**2.53 MB**, yedi kat küçük ve oynuyor.
+
+### Ölçülen sonuç
+
+Örnek video (300 kare, 960x540, hepsi CPU): **49.5 saniye, 6.1 kare/sn**.
+Tespit 45.2 ms, derinlik 38.9, segmentasyon 16.4, çizim 9.2, kalanlar 3 ms altı.
+
+### Kalan
+
+Deploy adımı benim çalıştırabileceğim bir şey değil — Hugging Face kimlik
+bilgisi gerekiyor. Komutlar README'de hazır, `docs/spaces-README.md` Space'in
+frontmatter'ı olarak duruyor.
+

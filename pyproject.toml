@@ -21,6 +21,9 @@ dependencies = [
     "tqdm>=4.66.0",
 ]
 
+[project.optional-dependencies]
+app = ["gradio>=4.44"]
+
 [project.scripts]
 perception = "perception.cli:main"
 

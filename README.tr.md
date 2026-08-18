@@ -227,6 +227,54 @@ budur; bir sayının arkasına saklanmak yerine açıkça yazıldı.
 
 ---
 
+## Canlı demo
+
+Gradio arayüzü tüm yığını yüklenen bir klip üzerinde çalıştırır:
+
+```bash
+pip install -r requirements-app.txt
+python app.py
+```
+
+Ücretsiz CPU katmanı için tasarlandı, gerçek zamanlı olma iddiası yok: klip
+girer, ilk 15 saniyesi çevrimdışı işlenir, işaretlenmiş video ve ölçüm raporu
+döner.
+
+**CPU ayarları tahmin değil ölçüm.** `yolov8n` ve 480 px'e inmek, 960 px
+genişlikte işlemek, derinliği 5, segmentasyonu 10 karede bir hesaplamak
+pipeline'ı 342 ms/kareden 121 ms'e indiriyor — 15 saniyelik klip yaklaşık bir
+dakikada bitiyor. Kaydedilmeye değer bir sonuç: torch'u altı yerine iki iş
+parçacığına sınırlamak neredeyse hiçbir şeyi değiştirmedi, yani bu model
+boyutlarında darboğaz paralel hesap değil işlem başı ek yük. Ayarların tamamı
+ve gerekçesi: [configs/spaces.yaml](configs/spaces.yaml).
+
+**Yüklenen video için kuşbakışı harita kapalı.** Homografi, yol düzleminde
+kameraya ve montaja özgü dört nokta ister; bir yabancının klibi için o bilgi
+yok. Makul görünen varsayılan bir dörtgen koymak, ölçülmüş gibi okunan ama
+ölçülmemiş mesafeler üretirdi. Tespit, takip ve derinlik kameradan bağımsız
+çalışır; depodaki Maltepe örneğinin gerçek kalibrasyonu olduğu için haritayı da
+gösterir.
+
+### Hugging Face Spaces'e yükleme
+
+Spaces yalnızca `requirements.txt` okuduğu için arayüz bağımlılığı oraya
+katılmalı:
+
+```bash
+huggingface-cli repo create otonomarac --type space --space_sdk gradio
+git clone https://huggingface.co/spaces/<kullanici>/otonomarac space && cd space
+cp -r ../{app.py,src,configs,examples} .
+cp ../docs/spaces-README.md README.md          # Spaces frontmatter'i
+printf 'gradio>=4.44
+' | cat ../requirements.txt - > requirements.txt
+git add -A && git commit -m "Deploy" && git push
+```
+
+Model ağırlıkları ilk çalıştırmada indiği için ilk istek yukarıdaki
+sürelerden uzun sürer.
+
+---
+
 ## Klasör yapısı
 
 ```
@@ -258,7 +306,7 @@ docs/            Proje raporu ve mühendislik günlüğü
 | 4 | Homografi, kuşbakışı harita, çift panel | **bitti** — 0.1 ms/kare |
 | 5 | Göreli hız, ölçek kalibrasyonu, TTC | **bitti** — TTC ölçek-değişmez |
 | 6 | Şerit / sürülebilir alan segmentasyonu | **bitti** — haritada görülen serbest alan |
-| 7 | Gradio arayüzü, Hugging Face Spaces | |
+| 7 | Gradio arayüzü, Hugging Face Spaces | **bitti** — CPU'da 342 → 121 ms/kare |
 | 8 | Dokümantasyon, hata analizi, performans tablosu | |
 
 Kural: **her hafta sonunda çalışan bir çıktı olacak.** Bir sonraki katmana ancak

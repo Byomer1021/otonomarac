@@ -1,0 +1,6 @@
+# Gradio arayuzu icin ek bagimlilik.
+# Kutuphanenin kendisi gradio'ya ihtiyac duymaz; bu yuzden ayri dosyada.
+# Hugging Face Spaces yalnizca requirements.txt okur - Space'e yuklerken
+# bu dosyanin icerigi oraya kopyalanmali (bkz. README, "Canli demo").
+-r requirements.txt
+gradio>=4.44

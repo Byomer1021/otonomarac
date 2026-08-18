@@ -28,6 +28,8 @@ weights/
 # ...ama README'deki tanitim gorselleri depoya girer
 !docs/assets/*.gif
 !docs/assets/*.png
+# Demo icin gereken kucuk ornek klip
+!examples/*.mp4
 
 # Yerel geçici klasör (pip build workaround'u)
 .tmp/
