@@ -16,10 +16,16 @@ araçların ve şeritlerin üstten gösterildiği dinamik harita.
 
 ![Maltepe'de çekilen dashcam görüntüsü üzerinde tespit, takip ve kuşbakışı projeksiyon](docs/assets/demo.gif)
 
-*Kendi dashcam kaydımız, Maltepe/İstanbul. Solda: kalıcı kimlikli tespitler,
-hareket izleri ve göreli derinlik. Sağda: homografiyle çıkarılan zemin
-konumları. Haritadaki mesafeler aracın burnundan değil kalibrasyon referans
-satırından ölçülüyor — bkz. [Kuşbakışı haritanın kalibrasyonu](#kuşbakışı-haritanın-kalibrasyonu).*
+*Kendi dashcam kaydımız, Maltepe/İstanbul. **Solda:** kalıcı kimlikli
+tespitler, hareket izleri ve göreli derinlik; öndeki aracın çarpışmaya kalan
+süresi iki saniyenin altına inince kutusu kırmızıya dönüyor. **Sağda:**
+homografiyle çıkarılan zemin konumları, altında segmentasyonun bulduğu
+sürülebilir alan ve şerit boyası. Haritadaki boşluklar kameranın görmediği
+yönler — her araç arkasına bir görüş engeli gölgesi düşürüyor. Mesafeler aracın
+burnundan değil kalibrasyon referans satırından ölçülüyor; bkz.
+[Kuşbakışı haritanın kalibrasyonu](#kuşbakışı-haritanın-kalibrasyonu).*
+
+**[▶ Tarayıcıda dene](https://huggingface.co/spaces/byomer1021/otonomarac)** — bir klip yükle, işaretlenmiş videoyu ve ölçüm raporunu al. Kurulum yok.
 
 > **Durum: tamamlandı.** Sekiz haftanın hepsi bitti — tespit, takip, derinlik,
 > kuşbakışı projeksiyon, TTC ve sürülebilir alan segmentasyonu uçtan uca

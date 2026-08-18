@@ -15,10 +15,16 @@ bird's-eye-view map of vehicles and lanes on the right.
 
 ![Detection, tracking and bird's-eye-view projection running on dashcam footage from Maltepe, Istanbul](docs/assets/demo.gif)
 
-*Own dashcam footage, Maltepe/Istanbul. Left: detections with persistent track
-IDs, motion trails, and relative depth. Right: ground-plane positions through a
-homography. Distances on the map are measured from the calibration reference
-row, not from the vehicle's nose — see [Calibrating the bird's-eye view](#calibrating-the-birds-eye-view).*
+*Own dashcam footage, Maltepe/Istanbul. **Left:** detections with persistent
+track IDs, motion trails and relative depth; the vehicle ahead is outlined in
+red once its time-to-collision drops below two seconds. **Right:** ground-plane
+positions through a homography, over the drivable area and lane paint the
+segmentation layer found. Gaps in the map are directions no camera saw — every
+vehicle casts an occlusion shadow. Map distances are measured from the
+calibration reference row, not the vehicle's nose; see
+[Calibrating the bird's-eye view](#calibrating-the-birds-eye-view).*
+
+**[▶ Try it in the browser](https://huggingface.co/spaces/byomer1021/otonomarac)** — upload a clip, get the annotated video and a measurement report. No install.
 
 > **Status: complete.** All eight weeks are done — detection, tracking, depth,
 > bird's-eye-view projection, TTC and drivable-area segmentation run end to end,
