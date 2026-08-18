@@ -280,6 +280,13 @@ sürüm numarası kaçınılmaz olarak kayar.
 Model ağırlıkları ilk çalıştırmada indiği için ilk istek yukarıdaki
 sürelerden uzun sürer.
 
+> **Spaces fiyatlandırması 2026'da değişti.** Gradio Space'ini ücretsiz
+> `cpu-basic` katmanında barındırmak artık PRO abonelik istiyor; ücretsiz
+> hesaplara statik Space'ler ve ZeroGPU kalıyor. Betik varsayılan olarak
+> `cpu-basic` kullanıyor; ücretsiz GPU katmanı için `--hardware zero-a10g`
+> vermek gerekiyor, o da `app.py`'de `@spaces.GPU` dekoratörü istiyor.
+
+
 ---
 
 ## Klasör yapısı

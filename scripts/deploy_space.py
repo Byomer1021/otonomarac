@@ -126,6 +126,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--name", default="otonomarac", help="Space adi")
     parser.add_argument("--private", action="store_true", help="Gizli Space olustur")
+    parser.add_argument(
+        "--hardware", default="cpu-basic",
+        help="Space donanimi. cpu-basic PRO abonelik ister; ucretsiz katmanda zero-a10g",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Yalnizca listele, yukleme")
     args = parser.parse_args(argv)
 
@@ -151,10 +155,24 @@ def main(argv: list[str] | None = None) -> int:
     print(f"yuklenecek: {len(files) + 2} dosya, {total / 1024 / 1024:.1f} MB")
 
     api = HfApi()
-    api.create_repo(
-        repo_id=repo_id, repo_type="space", space_sdk="gradio",
-        private=args.private, exist_ok=True,
-    )
+    try:
+        api.create_repo(
+            repo_id=repo_id, repo_type="space", space_sdk="gradio",
+            space_hardware=args.hardware, private=args.private, exist_ok=True,
+        )
+    except Exception as exc:
+        # Hugging Face 2026'da ucretsiz katmani daraltti: statik Space'ler
+        # herkese acik ama Gradio/Docker Space'i CPU Basic'te barindirmak PRO
+        # istiyor. Ham 402 yerine ne yapilacagini soyle.
+        if "402" in str(exc):
+            raise SystemExit(
+                "Hugging Face bu Space'i olusturmayi reddetti (402).\n\n"
+                "Gradio Space'ini CPU Basic'te barindirmak PRO abonelik istiyor;\n"
+                "ucretsiz katmanda yalnizca statik Space'ler ve ZeroGPU var.\n\n"
+                "  - PRO: https://huggingface.co/pro\n"
+                "  - Ucretsiz GPU: --hardware zero-a10g  (app.py'de @spaces.GPU gerekir)"
+            )
+        raise
 
     # Kaynak dosyalar dogrudan depodan.
     api.upload_folder(

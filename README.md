@@ -282,6 +282,13 @@ number that drifts.
 Model weights download on first run, so the first request is slower than the
 timings above.
 
+> **Spaces pricing changed in 2026.** Hosting a Gradio Space on the free
+> `cpu-basic` tier now requires a PRO subscription; free accounts get static
+> Spaces and ZeroGPU. The deploy script defaults to `cpu-basic`; pass
+> `--hardware zero-a10g` for the free GPU tier, which also needs a `@spaces.GPU`
+> decorator in `app.py`.
+
+
 ---
 
 ## Layout
