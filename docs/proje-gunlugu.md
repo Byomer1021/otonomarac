@@ -713,3 +713,79 @@ kutuyla işaretli. Risk katmanı kare başına **0.2 ms**.
 Koridor kapısı uzak mesafede güvenilirliğini yitiriyor: homografinin yanal
 hatası mesafeyle büyüdüğü için 20 m ötedeki bir nesnenin koridorda olup
 olmadığı kesin değil. Hafta 8'deki hata analizinde ölçülmeli.
+
+---
+
+## Hafta 6 — Şerit ve sürülebilir alan
+
+**Tarih:** 19 Ağustos 2026
+
+### Yapılanlar
+
+- `segmentation.py` — SegFormer (Cityscapes) yol maskesi + şerit boyası
+- `BEVProjector.warp_mask` — maskeyi harita düzlemine taşıma
+- Haritada sürülebilir alan, şerit boyası ve görüş engeli lejantı
+
+### Hafta 4'ten kalan borç kapandı
+
+Hafta 4'te şerit çizgilerini renkten bulmayı denemiş ve bırakmıştım: beyaz
+maske kaldırımı, park etmiş araçları ve bina cephelerini de yakalıyordu.
+"Şerit çıkarımı Hafta 6'nın işi" diye ertelemiştim.
+
+Çözüm ayrı bir dedektör değil, **kapılama** oldu. Aynı HSV eşiği artık yalnızca
+yol maskesinin içinde uygulanıyor ve sarı orta çizgiyi temiz yakalıyor. Sorun
+eşikte değil, eşiğin uygulandığı bölgedeymiş.
+
+### Model seçimi ve kaput
+
+Cityscapes üzerinde eğitilmiş SegFormer-b0 (3.7 M parametre, 19 sınıf).
+`road` sınıfı doğrudan sürülebilir alanı veriyor.
+
+İlk denemede model **kaputu yol sanıyordu** — kadrajın alt %15'i araç ve
+"yol" pikselinin büyük kısmı oraya düşüyordu. Kaput kesilince hem bu hata
+gitti hem de kadraj Cityscapes'in eğitildiği çerçeveye yaklaştı: kaputun
+üstündeki yol oranı %3.5'ten %6.4'e çıktı.
+
+Bu arada bir ölçüm yanılgısına da düştüm: "yol pikseli %11" düşük görünüyordu.
+Değilmiş — geniş açılı bu kadrajın %36'sı gökyüzü, %27'si bina. Yüzde yanlış
+metrikti; maskeye bakınca yol temiz çıkmıştı.
+
+### Haritadaki ışınsal çizgiler hata değil
+
+Maske haritaya taşındığında ufuktan yayılan ışınsal desenler çıktı. İlk
+tahminim ufka yakın satırların devasa alanlara yayılmasıydı ve menzil kırpması
+ekledim.
+
+**Kırpma bu klipte sıfır piksel siliyor.** Ölçtüm: kırpma satırı v=498, yol
+maskesi ise 508-611 satırları arasında — ufka hiç yaklaşmıyor. Kod yine de
+duruyor, çünkü yolun daha yükseğe uzandığı bir çekimde gerekli olacak.
+
+Gerçek sebep başkaydı: **görüş engeli gölgeleri.** Görüntüde önünde araç duran
+her yön haritada boş kalıyor. Bu fiziksel olarak doğru — harita gördüğümüz
+yolu gösteriyor, var olduğunu bildiğimiz yolu değil. Ama etiketlenmezse hata
+gibi okunuyordu, o yüzden haritaya lejant eklendi.
+
+Ölçülen sayı: haritanın %16.2'si sürülebilir işaretli.
+
+### Sonuç
+
+| Aşama | ms/kare |
+|---|---|
+| derinlik (CPU, 3 karede bir) | 117.0 |
+| segmentasyon (CPU, 5 karede bir) | 57.2 |
+| tespit (GPU) | 20.4 |
+| çizim | 9.5 |
+| takip | 2.8 |
+| füzyon | 0.8 |
+| risk | 0.4 |
+| projeksiyon | 0.1 |
+| **uçtan uca** | **220.8 (4.5 FPS)** |
+
+İki ağır katman da CPU'da; GPU'ya yalnızca tespit biniyor ve kart bu hafta hiç
+sorun çıkarmadı.
+
+### Sonraki hafta için not
+
+4.5 FPS canlı demo için fazla yavaş. Hafta 7'de Hugging Face Spaces ücretsiz
+CPU katmanında çalışacak, yani tespit de CPU'ya inecek. Oradaki asıl kaldıraç
+`every_n_frames` ve çözünürlük; ölçüm zaten var, tahmin gerekmiyor.

@@ -18,6 +18,7 @@ from .config import Config
 from .depth import DepthEstimator, fuse, normalize_for_display
 from .detection import Detection, YOLODetector
 from .risk import RiskEstimator
+from .segmentation import RoadSegmenter
 from .tracking import ObjectTracker
 from .utils import Profiler, describe_device
 from .video_io import Frame, VideoReader, VideoWriter
@@ -37,6 +38,10 @@ class FrameResult:
     trails: dict[int, list[tuple[int, float, float]]] = field(default_factory=dict)
     #: Goreli ters derinlik haritasi ([0,1], buyuk = yakin). Katman kapaliysa None.
     disparity: np.ndarray | None = None
+    #: Surulebilir alan maskesi (uint8, yol=1). Katman kapaliysa None.
+    road_mask: np.ndarray | None = None
+    #: Yol maskesi icinde bulunan serit boyasi (uint8, boya=1).
+    lane_mask: np.ndarray | None = None
     #: Cizim yapilmis kare (gorsellestirme kapaliysa None)
     rendered: np.ndarray | None = None
 
@@ -64,6 +69,11 @@ class PerceptionPipeline:
         self.bev = (
             BEVProjector(self.config.bev, self.config.camera)
             if self.config.bev.enabled and self.config.camera.road_quad
+            else None
+        )
+        self.segmenter = (
+            RoadSegmenter(self.config.segmentation, self.config.camera)
+            if self.config.segmentation.enabled
             else None
         )
         # Risk, zemin konumuna dayaniyor: BEV yoksa hesaplanamaz.
@@ -97,6 +107,14 @@ class PerceptionPipeline:
             # oldugunu gizlerdi.
             with self.profiler.stage("fuzyon"):
                 fuse(result.objects, result.disparity, self.config.depth, self.config.camera)
+
+        if self.segmenter is not None:
+            with self.profiler.stage("segmentasyon"):
+                result.road_mask = self.segmenter.segment(frame.image, frame.index)
+                if self.config.segmentation.show_lane_paint:
+                    result.lane_mask = self.segmenter.lane_paint(
+                        frame.image, result.road_mask
+                    )
 
         if self.bev is not None:
             with self.profiler.stage("projeksiyon"):
@@ -155,7 +173,13 @@ class PerceptionPipeline:
                 )
 
             if self.bev is not None:
-                canvas = stack_panels(canvas, self.bev.render(result.objects))
+                shape = result.frame.image.shape[:2]
+                road = lane = None
+                if result.road_mask is not None:
+                    road = self.bev.warp_mask(result.road_mask, shape)
+                if result.lane_mask is not None:
+                    lane = self.bev.warp_mask(result.lane_mask, shape)
+                canvas = stack_panels(canvas, self.bev.render(result.objects, road, lane))
 
         result.rendered = canvas
         return canvas

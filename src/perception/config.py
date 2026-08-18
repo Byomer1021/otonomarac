@@ -184,6 +184,26 @@ class BEVConfig:
 
 
 @dataclass
+class SegmentationConfig:
+    """Yol segmentasyonu (SegFormer / Cityscapes) ayarlari."""
+
+    enabled: bool = True
+    model: str = "nvidia/segformer-b0-finetuned-cityscapes-1024-1024"
+    device: str = "auto"
+    half: bool = False
+    #: Modele verilecek genislik (32'nin katina yuvarlanir).
+    #: 768 -> 234 ms, 1024 -> 464 ms (CPU olcumu, kaput kesilmis kare).
+    input_width: int = 768
+    #: Yol sahnede araclardan cok daha yavas degisir; her karede yeniden
+    #: hesaplamak gereksiz. Derinlik katmanindaki ayni takas.
+    every_n_frames: int = 5
+    #: Maskedeki kucuk delikleri kapatan morfoloji cekirdegi (0/1 = kapali).
+    close_kernel: int = 5
+    #: Serit boyasini haritaya isle.
+    show_lane_paint: bool = True
+
+
+@dataclass
 class RiskConfig:
     """Goreli hiz ve carpismaya kalan sure (TTC) ayarlari."""
 
@@ -261,6 +281,7 @@ class Config:
     tracking: TrackingConfig = field(default_factory=TrackingConfig)
     depth: DepthConfig = field(default_factory=DepthConfig)
     bev: BEVConfig = field(default_factory=BEVConfig)
+    segmentation: SegmentationConfig = field(default_factory=SegmentationConfig)
     risk: RiskConfig = field(default_factory=RiskConfig)
     visualize: VisualizeConfig = field(default_factory=VisualizeConfig)
 

@@ -20,8 +20,10 @@ IDs, motion trails, and relative depth. Right: ground-plane positions through a
 homography. Distances on the map are measured from the calibration reference
 row, not from the vehicle's nose — see [Calibrating the bird's-eye view](#calibrating-the-birds-eye-view).*
 
-> **Status: Week 1 of 8 — detection layer.** This README documents the target
-> system; the [Roadmap](#roadmap) marks what actually works today.
+> **Status: 6 of 8 weeks done** — detection, tracking, depth, bird's-eye-view
+> projection, TTC, and drivable-area segmentation all run. Remaining: a live
+> demo and the failure analysis. The [Roadmap](#roadmap) is the authority on
+> what works today.
 
 ---
 
@@ -257,7 +259,7 @@ docs/            Project report and engineering log
 | 3 | Depth Anything, box–depth fusion | **done** — relative depth per object |
 | 4 | Homography, bird's-eye-view map, two-panel render | **done** — 0.1 ms/frame |
 | 5 | Relative speed, scale calibration, TTC | **done** — TTC is scale-invariant |
-| 6 | Lane / drivable-area segmentation | |
+| 6 | Lane / drivable-area segmentation | **done** — visible free space on the map |
 | 7 | Gradio UI, Hugging Face Spaces deploy | |
 | 8 | Documentation, failure analysis, performance table | |
 

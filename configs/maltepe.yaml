@@ -95,6 +95,19 @@ bev:
   # olculmus sayilmamali, o yuzden cizilmiyor.
   max_range_m: 40.0
 
+segmentation:
+  enabled: true
+  model: nvidia/segformer-b0-finetuned-cityscapes-1024-1024
+  # Derinlikteki ayni gerekce: bu makinedeki kart agir sureklilikte yuku
+  # kaldiramiyor, segmentasyon da CPU'da kaliyor.
+  device: cpu
+  half: false
+  input_width: 768        # 768 -> 234 ms, 1024 -> 464 ms (CPU)
+  # Yol sahnede araclardan cok daha yavas degisir.
+  every_n_frames: 5
+  close_kernel: 5
+  show_lane_paint: true
+
 risk:
   enabled: true
   min_observations: 5       # iki noktadan cikarilan hiz gurultunun kendisidir

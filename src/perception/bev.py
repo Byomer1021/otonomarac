@@ -162,7 +162,57 @@ class BEVProjector:
         py = h - (y_m + self.config.range_behind_m) * self.config.px_per_m
         return int(round(px)), int(round(py))
 
-    def render(self, detections: list[Detection]) -> np.ndarray:
+    def _canvas_matrix(self) -> np.ndarray:
+        """Zemin koordinatlarindan harita piksellerine afin donusum."""
+        w, h = self.canvas_size
+        ppm = self.config.px_per_m
+        return np.array(
+            [
+                [ppm, 0.0, w / 2.0],
+                [0.0, -ppm, h - self.config.range_behind_m * ppm],
+                [0.0, 0.0, 1.0],
+            ],
+            dtype=np.float32,
+        )
+
+    def warp_mask(self, mask: np.ndarray, shape: tuple[int, int]) -> np.ndarray:
+        """Goruntu duzlemindeki bir maskeyi harita duzlemine tasir.
+
+        Iki donusum zincirleniyor: once homografi (goruntu -> zemin, metre),
+        sonra afin olcekleme (zemin -> harita pikseli). Tek matris olarak
+        birlestirilip bir kez warp uygulaniyor - maskeyi once metreye, sonra
+        piksele tasimak iki kez ornekleme demek olurdu.
+        """
+        H = self._ensure_homography(shape)
+
+        # Ufka yakin satirlar once kirpiliyor. Olculdu: bu kalibrasyonda zemin
+        # 40 m goruntude v=497.6, 60 m ise v=492.3 - yani bes piksellik bir
+        # serit yirmi metreyi kapliyor. O satirlar warp edilirse harita ufuktan
+        # yayilan isinsal cizgilerle dolar ve olculmus gibi gorunen bir alan
+        # uydurulmus olur. Nesnelerde `max_range_m` ayni isi yapiyordu.
+        cutoff = self._row_for_range(self.config.max_range_m, shape)
+        limited = mask.copy()
+        limited[: max(0, cutoff)] = 0
+
+        combined = self._canvas_matrix() @ H
+        w, h = self.canvas_size
+        return cv2.warpPerspective(
+            limited, combined, (w, h), flags=cv2.INTER_NEAREST, borderValue=0
+        )
+
+    def _row_for_range(self, range_m: float, shape: tuple[int, int]) -> int:
+        """Verilen zemin mesafesine denk gelen goruntu satiri."""
+        H = self._ensure_homography(shape)
+        point = np.array([[[0.0, float(range_m)]]], dtype=np.float32)
+        row = cv2.perspectiveTransform(point, np.linalg.inv(H))[0][0][1]
+        return int(np.ceil(row))
+
+    def render(
+        self,
+        detections: list[Detection],
+        road_mask: np.ndarray | None = None,
+        lane_mask: np.ndarray | None = None,
+    ) -> np.ndarray:
         """Kusbakisi haritayi cizer.
 
         Cizim burada, `visualize.py`'de degil: harita icerigi projeksiyon
@@ -174,6 +224,14 @@ class BEVProjector:
 
         w, h = self.canvas_size
         canvas = np.full((h, w, 3), 22, dtype=np.uint8)
+
+        # Sürülebilir alan en altta: uzerine izgara, sonra nesneler gelir.
+        if road_mask is not None:
+            canvas[road_mask > 0] = (38, 52, 40)
+        if lane_mask is not None:
+            canvas[lane_mask > 0] = (120, 190, 210)
+        if road_mask is not None or lane_mask is not None:
+            self._draw_legend(canvas, road_mask is not None, lane_mask is not None)
 
         self._draw_grid(canvas)
         self._draw_ego(canvas, self.ego_offset_m)
@@ -208,6 +266,28 @@ class BEVProjector:
                 )
 
         return canvas
+
+    def _draw_legend(self, canvas: np.ndarray, road: bool, lane: bool) -> None:
+        """Haritadaki boslugun ne anlama geldigini yazar.
+
+        Surulebilir alan maskesi yalnizca GORULEN yolu gosterir: onunde bir
+        arac duran her yon haritada bos kalir. Bu bir eksiklik degil, kameranin
+        gercekten gordugu sey - ama etiketlenmezse hata gibi okunuyor.
+        """
+        rows = []
+        if road:
+            rows.append(((38, 52, 40), "gorulen yol"))
+        if lane:
+            rows.append(((120, 190, 210), "serit boyasi"))
+        rows.append(((16, 16, 18), "gorus engeli"))
+
+        y = 8
+        for color, text in rows:
+            cv2.rectangle(canvas, (6, y), (16, y + 8), color, -1)
+            cv2.rectangle(canvas, (6, y), (16, y + 8), (90, 90, 100), 1)
+            cv2.putText(canvas, text, (21, y + 8), cv2.FONT_HERSHEY_SIMPLEX,
+                        0.32, (150, 150, 160), 1, cv2.LINE_AA)
+            y += 14
 
     def _draw_grid(self, canvas: np.ndarray) -> None:
         """Mesafe halkalari ve serit genisliginde dikey cizgiler."""

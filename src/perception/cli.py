@@ -71,6 +71,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Kaputun basladigi satir, yukseklik orani (Maltepe: 0.85)",
     )
 
+    segmentation = parser.add_argument_group("segmentasyon")
+    segmentation.add_argument("--no-segment", action="store_true", help="Yol segmentasyonunu kapat")
+    segmentation.add_argument("--segment-width", type=int, default=None, help="Model giris genisligi")
+    segmentation.add_argument("--segment-every", type=int, default=None, help="Kac karede bir")
+
     parser.add_argument("--no-hud", action="store_true", help="Bilgi panelini gizle")
     parser.add_argument(
         "--dump-config",
@@ -105,6 +110,9 @@ def main(argv: list[str] | None = None) -> int:
             "depth.input_width": args.depth_width,
             "depth.every_n_frames": args.depth_every,
             "depth.show_panel": False if args.no_depth_panel else None,
+            "segmentation.enabled": False if args.no_segment else None,
+            "segmentation.input_width": args.segment_width,
+            "segmentation.every_n_frames": args.segment_every,
             "visualize.show_hud": False if args.no_hud else None,
         }
     )

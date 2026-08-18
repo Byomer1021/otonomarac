@@ -192,6 +192,31 @@ def main() -> int:
 
         return f"yaklasan nesne TTC {ttc:.1f}s, koridor disi elendi"
 
+    def _segment() -> str:
+        from perception.config import CameraConfig, SegmentationConfig
+        from perception.segmentation import ROAD_ID, RoadSegmenter
+
+        segmenter = RoadSegmenter(SegmentationConfig(input_width=384), CameraConfig(hood_top=0.85))
+        # Altta gri asfalt, ustte mavi gokyuzu: modelin ayirt etmesi beklenir.
+        frame = np.zeros((360, 640, 3), dtype=np.uint8)
+        frame[:180] = (200, 140, 60)
+        frame[180:] = (90, 92, 95)
+        mask = segmenter.segment(frame)
+
+        if mask.shape != frame.shape[:2]:
+            raise AssertionError(f"maske boyutu kareyle uyusmuyor: {mask.shape}")
+        hood_row = int(360 * 0.85)
+        if mask[hood_row:].any():
+            raise AssertionError("kaput bolgesinde yol isaretlendi")
+
+        lane = segmenter.lane_paint(frame, mask)
+        if lane.shape != mask.shape:
+            raise AssertionError("serit maskesi yol maskesiyle ayni boyutta degil")
+        if (lane & (1 - mask)).any():
+            raise AssertionError("serit boyasi yol maskesinin disina tasti")
+
+        return f"yol %{mask.mean()*100:.0f}, kaput temiz, boya maskeyle sinirli (sinif id {ROAD_ID})"
+
     def _draw() -> str:
         from perception.detection import Detection
         from perception.visualize import draw_detections, draw_hud, draw_trails
@@ -212,6 +237,7 @@ def main() -> int:
         ("ByteTrack takip", _tracker),
         ("Depth Anything + fuzyon", _depth),
         ("Kusbakisi projeksiyon", _bev),
+        ("Yol segmentasyonu", _segment),
         ("Hiz ve TTC", _risk),
         ("Cizim", _draw),
     ]:

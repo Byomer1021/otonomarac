@@ -21,9 +21,10 @@ hareket izleri ve göreli derinlik. Sağda: homografiyle çıkarılan zemin
 konumları. Haritadaki mesafeler aracın burnundan değil kalibrasyon referans
 satırından ölçülüyor — bkz. [Kuşbakışı haritanın kalibrasyonu](#kuşbakışı-haritanın-kalibrasyonu).*
 
-> **Durum: 8 haftanın 1. haftası — tespit katmanı.** Bu README hedeflenen
-> sistemi anlatıyor; bugün gerçekten ne çalışıyor için [Yol haritası](#yol-haritası)
-> bölümüne bak.
+> **Durum: 8 haftanın 6'sı bitti** — tespit, takip, derinlik, kuşbakışı
+> projeksiyon, TTC ve sürülebilir alan segmentasyonu çalışıyor. Kalan: canlı
+> demo ve hata analizi. Bugün gerçekten ne çalıştığı için
+> [Yol haritası](#yol-haritası) bölümü esas alınmalı.
 
 ---
 
@@ -256,7 +257,7 @@ docs/            Proje raporu ve mühendislik günlüğü
 | 3 | Depth Anything, kutu–derinlik füzyonu | **bitti** — nesne başına göreli derinlik |
 | 4 | Homografi, kuşbakışı harita, çift panel | **bitti** — 0.1 ms/kare |
 | 5 | Göreli hız, ölçek kalibrasyonu, TTC | **bitti** — TTC ölçek-değişmez |
-| 6 | Şerit / sürülebilir alan segmentasyonu | |
+| 6 | Şerit / sürülebilir alan segmentasyonu | **bitti** — haritada görülen serbest alan |
 | 7 | Gradio arayüzü, Hugging Face Spaces | |
 | 8 | Dokümantasyon, hata analizi, performans tablosu | |
 
