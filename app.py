@@ -140,6 +140,12 @@ def process(video, use_depth, use_segmentation, progress=gr.Progress()):
 
             with VideoWriter(output, fps=meta.fps) as writer:
                 for index, frame in enumerate(reader):
+                    # Sinir BURADA uygulaniyor, kirpmada degil. ffmpeg kirpmasi
+                    # bir hizlandirma; Space imajinda ffmpeg yoksa `_trim`
+                    # videoyu oldugu gibi dondurur ve on dakikalik bir yukleme
+                    # bastan sona islenmeye kalkardi.
+                    if frame.timestamp > MAX_SECONDS:
+                        break
                     writer.write(pipeline.render(pipeline.process_frame(frame)))
                     if index % 5 == 0:
                         progress(min(0.98, index / total), desc=f"Kare {index}/{total}")
