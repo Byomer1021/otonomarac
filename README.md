@@ -20,10 +20,10 @@ IDs, motion trails, and relative depth. Right: ground-plane positions through a
 homography. Distances on the map are measured from the calibration reference
 row, not from the vehicle's nose — see [Calibrating the bird's-eye view](#calibrating-the-birds-eye-view).*
 
-> **Status: 6 of 8 weeks done** — detection, tracking, depth, bird's-eye-view
-> projection, TTC, and drivable-area segmentation all run. Remaining: a live
-> demo and the failure analysis. The [Roadmap](#roadmap) is the authority on
-> what works today.
+> **Status: complete.** All eight weeks are done — detection, tracking, depth,
+> bird's-eye-view projection, TTC and drivable-area segmentation run end to end,
+> the demo is live, and [Where it fails](#where-it-fails) reports what breaks and
+> by how much.
 
 ---
 
@@ -323,11 +323,71 @@ docs/            Project report and engineering log
 | 5 | Relative speed, scale calibration, TTC | **done** — TTC is scale-invariant |
 | 6 | Lane / drivable-area segmentation | **done** — visible free space on the map |
 | 7 | Gradio UI, Hugging Face Spaces deploy | **done** — 342 → 121 ms/frame on CPU |
-| 8 | Documentation, failure analysis, performance table | |
+| 8 | Documentation, failure analysis, performance table | **done** |
 
 The rule: **every week ends with something that runs.** The next layer starts
 only after the current one works end to end, so the project stays presentable
 whenever it stops.
+
+---
+
+## Where it fails
+
+Measured, not asserted — [`scripts/failure_analysis.py`](scripts/failure_analysis.py)
+produces every number in [docs/hata-analizi.md](docs/hata-analizi.md), comparing
+a dense city clip against an almost-empty rural one from the same camera.
+
+Four findings worth knowing before trusting any output:
+
+**Projection degrades with range.** Frame-to-frame distance noise for a tracked
+object grows 3.7× from the near band to the far one: median 3.9 m/s at 0-8 m
+against 14.6 m/s at 25-40 m, with a 90th percentile of 54 m/s — 196 km/h, which
+nothing in a city street does. The cause is geometric: ground distance 40 m sits
+at image row 497.6 and 60 m at 492.3, so a five-pixel strip covers twenty
+metres. Anything past 25 m on the map is indicative, not measured.
+
+**Occlusion breaks the ground-contact assumption.** The system assumes a box's
+bottom edge is where the object meets the road. Partly hide the object and the
+visible bottom sits above the true contact point, so the homography places it
+too far away. Occluded boxes carry double the distance noise of clear ones
+(10.0 against 5.2 m/s median). A fit-quality gate suppresses the resulting false
+warnings, at the cost of thinning genuine ones from 39 observations to 21. The
+underlying distance is still wrong; only the alarm is suppressed.
+
+**An empty scene turns the bonnet into phantom vehicles.** `detection.conf` sits
+at 0.05 because ByteTrack's second association pass needs it. With no real
+objects in frame, that threshold labels reflections on the bonnet as cars — 71%
+of detections on the rural clip, median confidence 0.13, against 4% in the city.
+Detections more than half below the bonnet line are now dropped before tracking:
+rural raw detections fall from 890 to 330 and usable ground positions rise from
+20% to 55%, while the city scene moves by 2%.
+
+**Tracking difficulty comes from occlusion, not object count.** The rural clip
+has 5 tracks against the city's 110, yet zero gapped tracks against 25% — with
+nothing to hide behind, no track is ever lost and re-found.
+
+Untested rather than working: night, rain and fog (the footage has none), and
+sloped roads (Maltepe is flat, so the flat-plane assumption was never stressed).
+
+### Performance
+
+Per frame, 1280 px wide, GTX 1080 for detection and CPU for the two heavy models:
+
+| Stage | ms | Note |
+|---|---|---|
+| depth | 117.0 | CPU, recomputed every 3rd frame |
+| segmentation | 57.2 | CPU, every 10th frame |
+| detection | 20.4 | GPU |
+| drawing | 9.5 | two panels |
+| tracking | 2.8 | |
+| fusion | 0.8 | |
+| risk | 0.4 | |
+| projection | 0.1 | |
+| **end to end** | **220.8** | **4.5 FPS** |
+
+On the free CPU tier with the tuned profile: 121 ms/frame, about 8 FPS.
+Warm-up is excluded — the first CUDA inference costs 4 s and would otherwise
+have reported the week-1 pipeline as 22.4 FPS instead of 50.7.
 
 ---
 
@@ -388,11 +448,14 @@ Knowing what you did not build, and why, is engineering maturity — not a gap.
 
 ## Success criteria
 
-- [ ] An arbitrary driving video processes end to end without errors
-- [ ] The BEV map shows relative vehicle positions consistently
-- [ ] The live demo link works and is publicly reachable
-- [ ] The README states what the system does, how it works, and **where it fails**
-- [ ] Performance measurements are reported
+- [x] An arbitrary driving video processes end to end without errors
+- [x] The BEV map shows relative vehicle positions consistently — cross-checked
+      against monocular depth, which shares no input beyond the frame itself
+- [x] The live demo link works and is publicly reachable —
+      [huggingface.co/spaces/byomer1021/otonomarac](https://huggingface.co/spaces/byomer1021/otonomarac)
+- [x] The README states what the system does, how it works, and **where it fails**
+      — [Where it fails](#where-it-fails), measured in [docs/hata-analizi.md](docs/hata-analizi.md)
+- [x] Performance measurements are reported — per stage, warm-up excluded
 
 Note the absence of an accuracy metric (mAP and friends). This is a systems
 integration project, not a model training project; it is judged on whether it

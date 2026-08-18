@@ -864,3 +864,94 @@ Deploy adımı benim çalıştırabileceğim bir şey değil — Hugging Face ki
 bilgisi gerekiyor. Komutlar README'de hazır, `docs/spaces-README.md` Space'in
 frontmatter'ı olarak duruyor.
 
+---
+
+## Hafta 8 — Dokümantasyon ve hata analizi
+
+**Tarih:** 19 Ağustos 2026
+
+### Yapılanlar
+
+- `scripts/failure_analysis.py` — dört ölçümlü hata analizi
+- `docs/hata-analizi.md` — sonuçların yorumlanmış hâli
+- İki README'ye "nerede başarısız oluyor" ve konsolide performans tablosu
+- `data/maltepe_rural.mp4` — ikinci test sahnesi (kaynağın 72. dakikası)
+
+### Ölçülen dört şey
+
+**1. Bilgi hunisi.** Ham tespitin yalnızca **%2'si** TTC'ye dönüşüyor. Bu kayıp
+değil tasarım: %52 kimlik alamıyor (o band ByteTrack'in kurtarma turu için
+var), kalanın çoğu güzergâh koridorunun dışında, geri kalanı fit kalitesi
+kapısına takılıyor. Sistem üretebileceği sayıların çoğunu bilerek üretmiyor.
+
+**2. Mesafe kararlılığı bandlara ayrıldı.** Gürültü 0-8 m'de medyan 3.9 m/s,
+25-40 m'de 14.6 m/s — **3.7 kat**. 90. yüzdelik 54.4 m/s, yani saatte 196 km.
+`bev.max_range_m = 40` artık keyfi bir sayı değil, bu tablodan geliyor.
+
+**3. Örtülme sayıya döküldü.** Hafta 5'te tekil bir örnekte görülmüştü; ölçüm
+genel olduğunu gösterdi: örtülü kutuların gürültüsü örtüşmeyenlerin **iki katı**
+(10.0'a karşı 5.2 m/s medyan).
+
+**4. Sahne bağımlılığı.** Kırsalda parçalanma %40 ama delikli iz **%0**.
+Şehirde %17 ve %25. Birlikte okununca ortaya çıkan şey: **takip zorluğu nesne
+sayısından değil, nesnelerin birbirini örtmesinden geliyor.**
+
+### Beklenmedik bulgu: boş sahne kaputu hayalet araca çeviriyor
+
+Kırsal klipte tespitlerin **%71'i** kaput bölgesindeydi — hepsi araç sınıfı,
+medyan güven 0.13. Şehirde aynı oran %4.
+
+Sebep iki katmanın etkileşimi. `detection.conf` ByteTrack için 0.05'te ve
+sahnede gerçek nesne yokken o eşik kaputun yansımalarını araba olarak
+etiketliyor. Şehirde gerçek trafiğin arasında kayboluyorlar, boş yolda baskın
+hale geliyorlar.
+
+Haritaya ulaşmıyorlardı ama takip onlara kimlik harcıyordu.
+
+**Düzeltme ve ölçütün seçimi:** ilk sürüm kutunun **tamamının** kaput altında
+olmasını aradı ve neredeyse hiçbir şeyi elemedi — hayaletlerin üst kenarı
+genelde çizginin biraz üstünde başlıyor. Ölçüm yapıldı: kutusunun yarısından
+fazlası kaputta olanlar şehirde 142/168, kırsalda 184/234. Ölçüt yarıya çekildi.
+
+| Ölçüm | Önce | Sonra |
+|---|---|---|
+| Kırsal ham tespit | 890 | 330 |
+| Kırsal zemin konumu | %20 | %55 |
+| Şehir ham tespit | 10.578 | 10.322 |
+| Şehir parçalanma | %17 | %17 |
+
+Hayaletleri eliyor, gerçek nesnelere dokunmuyor.
+
+### Plandan son sapma: Hugging Face ücretsiz katmanı daraldı
+
+Ön rapor yayınlama hedefini "Hugging Face Spaces (ücretsiz CPU katmanı)" diye
+yazmıştı. 2026'da HF bunu değiştirdi: statik Space'ler herkese açık kaldı ama
+Gradio/Docker Space'i `cpu-basic`'te barındırmak PRO abonelik istiyor, ücretsiz
+hesaplar ZeroGPU'ya yönlendiriliyor.
+
+Dış bir değişiklik, planlama hatası değil. PRO ile devam edildi; ZeroGPU yolu
+da betikte duruyor (`--hardware zero-a10g`).
+
+### Dürüstçe eksik kalanlar
+
+- **Gece, yağmur, sis test edilmedi.** Çekimde o koşullar yok. Ön rapor
+  BDD100K'yı dayanıklılık testi için işaretlemişti, yapılmadı.
+- **Eğimli yol denenmedi.** Maltepe düz; düzlem varsayımı hiç zorlanmadı.
+  Çalışmadığı değil, bilinmediği için kısıt.
+- **Yöntem B (derinlik tabanlı projeksiyon) eklenmedi.** Rapor iki yöntemi
+  karşılaştırmayı öneriyordu; yalnızca A uygulandı. Derinlik ve homografi
+  birbirini çapraz doğruladı ama sistematik karşılaştırma yapılmadı.
+
+### Sekiz haftanın özeti
+
+| Hafta | Çıktı | Ölçülen sonuç |
+|---|---|---|
+| 1 | İskelet ve tespit | 50.7 FPS (ısınma ayrıldıktan sonra) |
+| 2 | Takip | Parçalanma %51 → %17 |
+| 3 | Derinlik ve füzyon | Nesne başına göreli mesafe, sıralama doğru |
+| 4 | Kuşbakışı projeksiyon | Araç genişliği 1.89 m (hedef 1.80) |
+| 5 | Hız ve TTC | TTC ölçek-değişmez olduğu ispatlandı |
+| 6 | Şerit ve sürülebilir alan | Hafta 4'ün şerit borcu kapandı |
+| 7 | Yayınlama | CPU'da 342 → 121 ms/kare |
+| 8 | Hata analizi | Dört ölçüm, bir düzeltme |
+

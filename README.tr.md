@@ -21,10 +21,10 @@ hareket izleri ve göreli derinlik. Sağda: homografiyle çıkarılan zemin
 konumları. Haritadaki mesafeler aracın burnundan değil kalibrasyon referans
 satırından ölçülüyor — bkz. [Kuşbakışı haritanın kalibrasyonu](#kuşbakışı-haritanın-kalibrasyonu).*
 
-> **Durum: 8 haftanın 6'sı bitti** — tespit, takip, derinlik, kuşbakışı
-> projeksiyon, TTC ve sürülebilir alan segmentasyonu çalışıyor. Kalan: canlı
-> demo ve hata analizi. Bugün gerçekten ne çalıştığı için
-> [Yol haritası](#yol-haritası) bölümü esas alınmalı.
+> **Durum: tamamlandı.** Sekiz haftanın hepsi bitti — tespit, takip, derinlik,
+> kuşbakışı projeksiyon, TTC ve sürülebilir alan segmentasyonu uçtan uca
+> çalışıyor, demo yayında, ve [Nerede başarısız oluyor](#nerede-başarısız-oluyor)
+> neyin ne kadar bozulduğunu ölçüyor.
 
 ---
 
@@ -321,11 +321,72 @@ docs/            Proje raporu ve mühendislik günlüğü
 | 5 | Göreli hız, ölçek kalibrasyonu, TTC | **bitti** — TTC ölçek-değişmez |
 | 6 | Şerit / sürülebilir alan segmentasyonu | **bitti** — haritada görülen serbest alan |
 | 7 | Gradio arayüzü, Hugging Face Spaces | **bitti** — CPU'da 342 → 121 ms/kare |
-| 8 | Dokümantasyon, hata analizi, performans tablosu | |
+| 8 | Dokümantasyon, hata analizi, performans tablosu | **bitti** |
 
 Kural: **her hafta sonunda çalışan bir çıktı olacak.** Bir sonraki katmana ancak
 mevcut katman uçtan uca çalıştıktan sonra geçilir; böylece proje hangi haftada
 durursa dursun elde gösterilebilir bir sonuç kalır.
+
+---
+
+## Nerede başarısız oluyor
+
+İddia değil ölçüm — [`scripts/failure_analysis.py`](scripts/failure_analysis.py)
+buradaki her rakamı üretiyor, tamamı [docs/hata-analizi.md](docs/hata-analizi.md)
+içinde. Aynı kameranın yoğun şehir klibi ile neredeyse boş kırsal klibi yan yana
+konuyor.
+
+Herhangi bir çıktıya güvenmeden önce bilinmesi gereken dört bulgu:
+
+**Projeksiyon uzakta bozuluyor.** Bir izin kareler arası mesafe gürültüsü yakın
+banttan uzağa 3.7 kat büyüyor: 0-8 m'de medyan 3.9 m/s, 25-40 m'de 14.6 m/s ve
+90. yüzdelik 54 m/s — saatte 196 km, şehir içinde hiçbir şey böyle hareket
+etmiyor. Sebep geometrik: zemin 40 m görüntüde satır 497.6, 60 m ise 492.3, yani
+beş piksellik şerit yirmi metreyi kaplıyor. Haritada 25 m ötesi gösterge
+amaçlıdır, ölçüm değil.
+
+**Örtülme zemine değme varsayımını kırıyor.** Sistem kutunun alt kenarını
+nesnenin yere değdiği yer sayıyor. Nesne kısmen örtülünce görünen alt kenar
+gerçek temas noktasının üstünde kalıyor ve homografi aracı olduğundan uzağa
+koyuyor. Örtülü kutuların mesafe gürültüsü örtüşmeyenlerin iki katı (medyan 10.0
+karşı 5.2 m/s). Fit kalitesi kapısı bunun ürettiği sahte uyarıları bastırıyor,
+bedeli gerçek uyarının 39 gözlemden 21'e inmesi. Mesafenin kendisi hâlâ yanlış,
+yalnızca alarm susturuluyor.
+
+**Boş sahne kaputu hayalet araca çeviriyor.** `detection.conf` 0.05'te, çünkü
+ByteTrack'in ikinci eşleştirme turu buna ihtiyaç duyuyor. Karede gerçek nesne
+yokken aynı eşik kaputun yansımalarını araba olarak etiketliyor — kırsal klipte
+tespitlerin %71'i, medyan güven 0.13; şehirde %4. Kutusunun yarısından fazlası
+kaput çizgisinin altında kalan tespitler artık takibe girmiyor: kırsalda ham
+tespit 890'dan 330'a düşüyor, kullanılabilir zemin konumu %20'den %55'e
+çıkıyor, şehir sahnesi %2 oynuyor.
+
+**Takip zorluğu nesne sayısından değil örtülmeden geliyor.** Kırsal klipte
+şehrin 110 izine karşı 5 iz var, ama delikli iz oranı %25'e karşı sıfır —
+arkasına saklanacak bir şey olmadığı için hiçbir iz kaybolup geri gelmiyor.
+
+Çalışmadığı değil, denenmediği için bilinmeyenler: gece, yağmur ve sis (çekimde
+yok), ve eğimli yol (Maltepe düz, düzlem varsayımı hiç zorlanmadı).
+
+### Performans
+
+Kare başına, 1280 px genişlik, tespit GTX 1080'de, iki ağır model CPU'da:
+
+| Aşama | ms | Not |
+|---|---|---|
+| derinlik | 117.0 | CPU, 3 karede bir |
+| segmentasyon | 57.2 | CPU, 10 karede bir |
+| tespit | 20.4 | GPU |
+| çizim | 9.5 | iki panel |
+| takip | 2.8 | |
+| füzyon | 0.8 | |
+| risk | 0.4 | |
+| projeksiyon | 0.1 | |
+| **uçtan uca** | **220.8** | **4.5 FPS** |
+
+Ücretsiz CPU katmanında ayarlanmış profille: 121 ms/kare, ~8 FPS. Isınma hariç —
+ilk CUDA çıkarımı 4 saniye sürüyor ve dahil edilseydi Hafta 1 pipeline'ı
+50.7 yerine 22.4 FPS raporlanacaktı.
 
 ---
 
@@ -384,11 +445,14 @@ Neyi neden yapmadığını bilmek eksiklik değil, mühendislik olgunluğudur.
 
 ## Başarı kriterleri
 
-- [ ] Rastgele bir sürüş videosu hatasız işlenip çıktı üretiyor
-- [ ] Kuşbakışı harita araçların göreli konumlarını tutarlı gösteriyor
-- [ ] Canlı demo linki çalışıyor ve dışarıdan erişilebiliyor
-- [ ] README'de sistemin ne yaptığı, nasıl çalıştığı ve **nerede başarısız olduğu** yazılı
-- [ ] Performans ölçümleri raporlanmış
+- [x] Rastgele bir sürüş videosu hatasız işlenip çıktı üretiyor
+- [x] Kuşbakışı harita araçların göreli konumlarını tutarlı gösteriyor — kareden
+      başka hiçbir girdiyi paylaşmayan monoküler derinlikle çapraz doğrulandı
+- [x] Canlı demo linki çalışıyor ve dışarıdan erişilebiliyor —
+      [huggingface.co/spaces/byomer1021/otonomarac](https://huggingface.co/spaces/byomer1021/otonomarac)
+- [x] README'de sistemin ne yaptığı, nasıl çalıştığı ve **nerede başarısız olduğu** yazılı
+      — [Nerede başarısız oluyor](#nerede-başarısız-oluyor), ölçümler [docs/hata-analizi.md](docs/hata-analizi.md)
+- [x] Performans ölçümleri raporlanmış — katman bazlı, ısınma hariç
 
 Kriterler arasında doğruluk metriği (mAP vb.) bilinçli olarak yok. Bu bir model
 eğitimi projesi değil, sistem entegrasyonu projesi; başarısı çalışıp

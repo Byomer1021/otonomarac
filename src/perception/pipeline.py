@@ -90,7 +90,9 @@ class PerceptionPipeline:
     def process_frame(self, frame: Frame) -> FrameResult:
         """Tek kareyi isler. Yeni katmanlar bu metoda sirayla eklenecek."""
         with self.profiler.stage("tespit"):
-            detections = self.detector.detect(frame.image)
+            detections = self._drop_bonnet_artifacts(
+                self.detector.detect(frame.image), frame.image.shape[0]
+            )
 
         result = FrameResult(frame=frame, detections=detections)
 
@@ -128,6 +130,42 @@ class PerceptionPipeline:
                 self.risk.update(result.objects, frame.timestamp, self.bev.ego_offset_m)
 
         return result
+
+    def _drop_bonnet_artifacts(self, detections: list[Detection], height: int) -> list[Detection]:
+        """Tamami kaput cizgisinin altinda kalan tespitleri atar.
+
+        `detection.conf` ByteTrack icin 0.05'te tutuluyor ve sahne bosken o
+        esik kaputun yansimalarini hayalet araca ceviriyor. Olculdu: kirsal
+        klipte tespitlerin %71'i kaput bolgesinde, hepsi arac sinifi, medyan
+        guven 0.13; sehir icinde ayni oran %4.
+
+        Bunlar zaten haritaya ulasmiyordu - `BEVProjector.project` zemine
+        degme noktasi kaputun altinda kalanlari eliyor - ama takip onlara
+        kimlik harcayip istatistigi kirletiyordu.
+
+        Olcut kutunun YARISI. Ilk surum kutunun tamaminin kaputun altinda
+        kalmasini ariyordu ve neredeyse hicbir seyi elemedi: hayaletlerin ust
+        kenari genelde cizginin biraz ustunde basliyor. Olculdu - kutusunun
+        yarisindan fazlasi kaputta olan tespitler sehirde 142/168, kirsalda
+        184/234 ve hepsinin medyan guveni 0.10 civari.
+
+        Yarim esigi guvenli: zemine degme noktasi kaputla ortulen gercek bir
+        arac kutusunun alt kenari cizgiye DAYANIR, yarisini gecmez. O arac
+        elenmez, kamera panelinde gorunmeye devam eder; yalnizca zemin konumu
+        uretilemez.
+        """
+        if self.config.camera.hood_top is None:
+            return detections
+
+        hood_row = height * self.config.camera.hood_top
+        kept = []
+        for det in detections:
+            _, y1, _, y2 = det.xyxy
+            box_height = max(1e-6, y2 - y1)
+            below = max(0.0, y2 - max(y1, hood_row)) / box_height
+            if below <= 0.5:
+                kept.append(det)
+        return kept
 
     def render(self, result: FrameResult, fps: float | None = None) -> np.ndarray:
         """Sonucu kare uzerine cizer ve cizilmis kareyi dondurur."""
