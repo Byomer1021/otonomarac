@@ -982,3 +982,38 @@ süreklilik ise hız ve TTC hesabını.
 `failure_analysis.py` artık sahne tablosuyla çalışıyor; her sahnenin kendi
 `hood_top` değeri ve kuşbakışının açık olup olmadığı tabloda tanımlı.
 
+### Ek — gece testi
+
+Üçüncü kayıt eklendi (`istanbul gece.mkv`, 3840×2160, 26.4 dakika). Yağmur
+kaydıyla aynı kamera ve kadraj, o yüzden `hood_top` taşındı.
+
+Kayıt aynı zamanda yağmurlu — camda damla, yolda yansıma. Yani ışık ve yağmurun
+etkisi **ayrıştırılamıyor**; kuru bir gece kaydı gerekirdi. Kısıt olarak yazıldı.
+
+Parlaklık farkı ölçüldü: kuru şehir 119, yağmur 130, gece otoyol 32, gece şehir
+**15** — yedi kat karanlık.
+
+**İki sayı yanıltıcı çıktı ve bunu fark etmek asıl bulgu oldu.**
+
+Gece otoyolda medyan güven **0.73**, neredeyse gündüz seviyesi. Gece şehirde
+parçalanma **%8**, tablonun en iyisi. İkisi de "gece iyi çalışıyor" gibi
+okunuyor, ama değil:
+
+- Yüksek güvenin sebebi araçların **arka lambalarından** tanınması — karanlıkta
+  parlak ve karakteristik bir işaret. Model gördüğünü iyi tanıyor.
+- Düşük parçalanmanın sebebi **kolay sahne** — karanlık şehir klibi yavaş
+  ilerleyen bir trafik kuyruğu, az sayıda ve sürekli görünür hedef.
+
+Asıl kayıp bu metriklerde görünmüyor: **medyan güven, tespit edilenin kalitesini
+ölçer, edilemeyenin sayısını değil.** Gece otoyolda kare başına 4.4 nesne var,
+kuru şehirde 12.4.
+
+**İstikrarlı bozulan tek metrik süreklilik:** delikli iz oranı kuruda %23,
+yağmurda %42, gecede **%61**. Üç katı.
+
+Bu, sistemin en kırılgan katmanını işaret ediyor. Tespit dayanıklı; kırılgan
+olan onun üstüne kurulu **risk katmanı**, çünkü TTC kesintili izlerle çalışmak
+zorunda kalıyor. Sekiz hafta boyunca "takibin kararlılığı projenin en kritik
+teknik noktası" diye yazmıştım — bu ölçüm onu doğruladı, ama beklediğim sebeple
+değil.
+

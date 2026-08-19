@@ -372,18 +372,35 @@ rural raw detections fall from 890 to 330 and usable ground positions rise from
 has 5 tracks against the city's 110, yet zero gapped tracks against 25% — with
 nothing to hide behind, no track is ever lost and re-found.
 
-**Rain does not break detection; visibility does.** A second recording — heavy
-rain in Istanbul — puts median confidence on the open road at 0.75, *above* the
-0.63 of the dry city clip, because motorway vehicles are larger and better
-separated than city traffic. The controlled comparison is within that same
-drive: as mist closes in, median confidence falls 0.75 → 0.57, fragmentation
-rises 19% → 31%, and median track length halves from 16 frames to 9. Rain's real
-cost is continuity — gapped tracks reach 42% on the wet road against 23% dry,
-which is exactly what speed estimation is sensitive to.
+**Bad conditions break continuity, not detection.** Two more recordings —
+heavy rain and a wet night — cover 7× less light than the dry clip (mean luma
+15 against 119). Detection holds up far better than expected: median confidence
+on the wet motorway is 0.75, *above* the dry city clip's 0.63, and even the
+night motorway keeps 0.73, because vehicles are recognised by their tail lights,
+which are bright and distinctive in the dark.
 
-Untested rather than working: night (both recordings are daytime), and sloped
-roads (Maltepe is flat, so the flat-plane assumption was never stressed). The
-rain camera was not calibrated, so its bird's-eye map and TTC are unmeasured.
+Two numbers in the night data look good and are not. Confidence measures the
+quality of what was detected, never the count of what was missed — the night
+motorway yields 4.4 objects per frame against 12.4 in the dry city. And the dark
+city clip shows the table's *best* fragmentation (8%) and longest tracks (60
+frames) simply because it is a slow traffic queue: few targets, all continuously
+visible.
+
+The metric that degrades consistently is track continuity. Gapped tracks — an
+object vanishing and returning — run 23% dry, 42% in rain and **61% at night**,
+roughly triple. Vehicles cross between pools of light, headlight glare washes
+out the frame, wipers sweep. Detection is surprisingly robust; the time-to-
+collision estimate built on top of those tracks is the fragile layer, and this
+measurement says so plainly.
+
+Controlled comparisons sit within a single drive: as mist closes in, median
+confidence falls 0.75 → 0.57 and fragmentation rises 19% → 31%. Comparisons
+across recordings also change scene type, so they are read with that caveat.
+
+Untested rather than working: sloped roads (both cameras filmed flat ground, so
+the flat-plane assumption was never stressed), and dry night — the night footage
+is also wet, so light level and rain cannot be separated. The rain and night
+camera was not calibrated, so its bird's-eye map and TTC are unmeasured.
 
 ### Performance
 

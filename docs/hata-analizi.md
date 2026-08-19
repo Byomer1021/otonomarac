@@ -153,19 +153,23 @@ nesnelerin birbirini örtmesinden geliyor.**
 
 ---
 
-## 6. Hava koşulu — yağmur ve sis
+## 6. Hava ve ışık — yağmur, sis, gece
 
 İkinci bir çekim eklendi: **İstanbul, sağanak yağmur** (3840×2160, 18.6 dakika).
 Farklı kadraj — kaput görüntünün alt %3'ünü kaplıyor, Maltepe'de %15 — bu yüzden
 homografi taşınmıyor ve o klipte kuşbakışı harita ile TTC ölçülmüyor. Tespit ve
 takip kameradan bağımsız çalıştığı için karşılaştırılabiliyor.
 
-| Sahne | nesne/kare | medyan güven | >0.5 oranı | kimlik | medyan iz | parçalanma | delikli |
-|---|---|---|---|---|---|---|---|
-| kuru şehir | 12.4 | 0.63 | 66% | 88 | 21 | 19% | 23% |
-| kuru kırsal | 0.7 | 0.87 | 76% | 3 | 44 | 33% | 0% |
-| yağmur, açık yol | 8.0 | **0.75** | 80% | 53 | 16 | 19% | **42%** |
-| yağmur, sisli | 6.6 | **0.57** | 66% | 65 | **9** | **31%** | 25% |
+| Sahne | luma | nesne/kare | medyan güven | >0.5 | kimlik | medyan iz | parçalanma | delikli |
+|---|---|---|---|---|---|---|---|---|
+| kuru şehir | 119 | 12.4 | 0.63 | 66% | 88 | 21 | 19% | 23% |
+| yağmur, açık yol | 131 | 8.0 | **0.75** | 80% | 53 | 16 | 19% | **42%** |
+| yağmur, sisli | 129 | 6.6 | **0.57** | 66% | 65 | **9** | **31%** | 25% |
+| gece, otoyol | **32** | 4.4 | **0.73** | 71% | 28 | 26 | 25% | **61%** |
+| gece, şehir | **15** | 6.0 | **0.45** | 45% | 26 | **60** | **8%** | 35% |
+
+`luma` sahnenin ortalama parlaklığı — gece kaydı kuru gündüzden **yedi kat**
+karanlık. Gece klibi aynı zamanda yağmurlu; iki koşul ayrıştırılamıyor.
 
 **Yağmurun kendisi tespiti bozmuyor.** Açık yolda medyan güven 0.75 — kuru şehir
 sahnesinden (0.63) daha yüksek. Sebep hava değil sahne: otoyolda araçlar büyük
@@ -181,8 +185,45 @@ geri geliyor. Muhtemel sebepler: silecek geçişleri, cama düşen damlalar, ıs
 zeminden gelen yansımalar. Bu, TTC hesabını doğrudan etkiler — hız çıkarımı
 gözlemler arası boşluğa duyarlı.
 
-**Ders:** "yağmurda çalışır mı" yanlış soru. Yağmur tespiti bozmuyor, **görüş
-mesafesi** bozuyor ve **süreklilik** bozuluyor. İkisi farklı katmanları vuruyor.
+### Gecede iki sayı yanıltıcı görünüyor
+
+**Otoyolda medyan güven 0.73** — neredeyse gündüz seviyesi. Sebep, gece
+araçların **arka lambalarından** tanınması: karanlıkta parlak, doygun ve
+karakteristik bir işaret. Model gördüğünü iyi tanıyor.
+
+**Şehirde parçalanma %8** ve medyan iz **60 kare** — tablodaki en iyi değerler.
+Ama bu iyi performans değil, **kolay sahne**: karanlık şehir klibi yavaş
+ilerleyen bir trafik kuyruğu, birkaç araç sürekli görünür halde. Az sayıda ve
+kolay hedef, uzun ve kararlı izler üretiyor.
+
+Asıl kaybı bu iki metrik göstermiyor. **Medyan güven, tespit edilenin kalitesini
+ölçer; edilemeyenin sayısını değil.** Gece otoyolda kare başına 4.4 nesne var,
+kuru şehirde 12.4. Bir kısmı sahne farkı, ama gece şehir klibinde gözle
+sayılabilen araçların hepsi bulunamıyor.
+
+### Tutarlı bozulan tek metrik: süreklilik
+
+| Koşul | delikli iz |
+|---|---|
+| kuru gündüz | 23% |
+| yağmurlu gündüz | 42% |
+| **gece** | **61%** |
+
+Delikli iz oranı — nesnenin kaybolup geri gelmesi — koşul zorlaştıkça
+istikrarlı büyüyor ve gecede **kuru gündüzün üç katına** çıkıyor. Araçlar ışık
+havuzları arasında geçerken, far parlamaları kadrajı yıkarken, silecek geçerken
+tespit kopuyor.
+
+**Ders:** "gece/yağmurda çalışır mı" tek bir soru değil. Üç ayrı şey bozuluyor
+ve üçü farklı katmanı vuruyor:
+
+- **Görüş mesafesi** → tespit güvenini düşürüyor (sis: 0.75 → 0.57)
+- **Işık seviyesi** → bulunan nesne sayısını düşürüyor, güveni değil
+- **Süreklilik** → hız ve TTC hesabını doğrudan bozuyor, ve en çok bu bozuluyor
+
+Sistemin en kırılgan katmanı bu ölçümde net: **risk katmanı.** Tespit
+şaşırtıcı derecede dayanıklı, ama üstüne kurulu TTC hesabı kesintili izlerle
+çalışmak zorunda kalıyor.
 
 ---
 
@@ -203,8 +244,8 @@ mesafesi** bozuyor ve **süreklilik** bozuluyor. İkisi farklı katmanları vuru
   20 m ötedeki bir nesnenin güzergâhta olup olmadığı kesin değil. Bölüm 2'deki
   tablo bunun büyüklüğünü veriyor.
 
-- **Gece test edilmedi.** Yağmur ve sis ölçüldü (bölüm 6) ama elimizdeki iki
-  çekimin ikisi de gündüz. Gece kaydı alınırsa aynı tablo üretilebilir.
+- **Gece ve yağmur ayrıştırılamadı.** Gece kaydı aynı zamanda yağmurlu; iki
+  koşulun etkisi ayrı ayrı ölçülemedi. Kuru bir gece kaydı bunu çözer.
 
 - **Yağmur kaydında kuşbakışı ölçülmedi.** O kamera kalibre edilmedi; taşınan
   yalnızca tespit ve takip metrikleri. Homografi çıkarılırsa harita ve TTC de

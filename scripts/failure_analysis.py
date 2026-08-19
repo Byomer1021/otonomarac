@@ -56,6 +56,8 @@ SCENES = {
     "kuru kirsal": ("data/maltepe_rural.mp4", 0.85, True),
     "yagmur yol": ("data/rain_highway.mp4", 0.96, False),
     "yagmur sis": ("data/rain_fog.mp4", 0.96, False),
+    "gece yol": ("data/night_highway.mp4", 0.96, False),
+    "gece sehir": ("data/night_city.mp4", 0.96, False),
 }
 
 FUNNEL = [

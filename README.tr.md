@@ -371,17 +371,34 @@ tespit 890'dan 330'a düşüyor, kullanılabilir zemin konumu %20'den %55'e
 şehrin 110 izine karşı 5 iz var, ama delikli iz oranı %25'e karşı sıfır —
 arkasına saklanacak bir şey olmadığı için hiçbir iz kaybolup geri gelmiyor.
 
-**Yağmur tespiti bozmuyor, görüş mesafesi bozuyor.** İkinci bir çekim —
-İstanbul'da sağanak — açık yolda medyan güveni 0.75 veriyor, kuru şehir
-klibinin 0.63'ünün *üstünde*, çünkü otoyoldaki araçlar şehir trafiğinden büyük
-ve seyrek. Kontrollü karşılaştırma aynı sürüşün içinde: sis bastırdıkça medyan
-güven 0.75 → 0.57, parçalanma %19 → %31, medyan iz uzunluğu 16 kareden 9'a
-iniyor. Yağmurun asıl bedeli süreklilikte — ıslak yolda delikli iz oranı %42,
-kuruda %23, ve hız çıkarımı tam da buna duyarlı.
+**Zor koşullar tespiti değil sürekliliği bozuyor.** İki kayıt daha eklendi —
+sağanak ve yağmurlu bir gece — ve gece kaydı kuru klipten **yedi kat** karanlık
+(ortalama luma 15'e karşı 119). Tespit beklenenden çok daha dayanıklı çıktı:
+ıslak otoyolda medyan güven 0.75, kuru şehir klibinin 0.63'ünün *üstünde*, ve
+gece otoyolda bile 0.73 — çünkü araçlar karanlıkta parlak ve karakteristik olan
+**arka lambalarından** tanınıyor.
 
-Çalışmadığı değil, denenmediği için bilinmeyenler: gece (iki kayıt da gündüz) ve
-eğimli yol (Maltepe düz, düzlem varsayımı hiç zorlanmadı). Yağmur kaydının
-kamerası kalibre edilmedi, o yüzden oradaki kuşbakışı harita ve TTC ölçülmedi.
+Gece verisindeki iki sayı iyi görünüyor ama değil. Güven, tespit edilenin
+kalitesini ölçer; edilemeyenin sayısını asla — gece otoyolda kare başına 4.4
+nesne var, kuru şehirde 12.4. Karanlık şehir klibi de tablonun *en iyi*
+parçalanmasını (%8) ve en uzun izlerini (60 kare) veriyor, ama sebebi başarı
+değil kolay sahne: yavaş ilerleyen bir trafik kuyruğu, az sayıda ve sürekli
+görünür hedef.
+
+İstikrarlı bozulan tek metrik **iz sürekliliği**. Delikli iz — nesnenin
+kaybolup geri gelmesi — kuruda %23, yağmurda %42, **gecede %61**; yaklaşık üç
+katı. Araçlar ışık havuzları arasında geçiyor, far parlamaları kadrajı yıkıyor,
+silecek geçiyor. Tespit şaşırtıcı derecede sağlam; kırılgan olan, o izlerin
+üstüne kurulu **çarpışma süresi hesabı** — ve bu ölçüm bunu açıkça söylüyor.
+
+Kontrollü karşılaştırmalar tek bir sürüşün içinde: sis bastırdıkça medyan güven
+0.75 → 0.57, parçalanma %19 → %31. Kayıtlar arası karşılaştırmalar sahne tipini
+de değiştiriyor, o çekinceyle okunmalı.
+
+Çalışmadığı değil, denenmediği için bilinmeyenler: eğimli yol (iki kamera da düz
+zeminde çekti, düzlem varsayımı hiç zorlanmadı) ve kuru gece — gece kaydı aynı
+zamanda yağmurlu, ışık ile yağmurun etkisi ayrıştırılamıyor. Yağmur ve gece
+kamerası kalibre edilmedi, oradaki kuşbakışı harita ve TTC ölçülmedi.
 
 ### Performans
 
