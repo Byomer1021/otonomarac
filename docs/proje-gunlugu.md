@@ -1017,3 +1017,52 @@ zorunda kalıyor. Sekiz hafta boyunca "takibin kararlılığı projenin en kriti
 teknik noktası" diye yazmıştım — bu ölçüm onu doğruladı, ama beklediğim sebeple
 değil.
 
+### Ek — ikinci kamera kalibre edildi
+
+Yağmur ve gece kayıtlarının kamerası da kalibre edildi (`configs/istanbul.yaml`),
+böylece altı sahnenin hepsinde tam pipeline ölçülüyor.
+
+Kalibrasyon Maltepe'dekinden temiz çıktı. İki şerit boyası fit edildi
+(91 ve 138 nokta), kesişimleri ufku **y=482** dedi; kalibrasyonda hiç
+kullanılmayan araç genişliği ölçütü bağımsız olarak **y=480** dedi. **İki yöntem
+uyuştu** — Maltepe'de ayrışmışlardı (510'a karşı 480) ve o çelişki çözülmemiş
+kalmıştı. Doğrulama: medyan yansıtılmış genişlik 1.81 m, korelasyon −0.13.
+
+`quad_width_m` yine varsayılmadı, araç genişliğinden ölçüldü: **2.98 m**.
+
+### Ve projenin en önemli bulgusu buradan çıktı
+
+| Sahne | koridordaki iz | TTC üretilen |
+|---|---|---|
+| kuru şehir | 6 | 150 (%55) |
+| yağmur yol | 1 | **0** |
+| gece otoyol | **6** | **0** |
+| gece şehir | 9 | 38 (%43) |
+
+Gece otoyolda kuru şehirle **aynı sayıda araç** güzergâhta ama **tek bir TTC
+üretilmiyor.** Fit kalitesi kapısı hepsini reddediyor — ve haklı, çünkü aynı
+sahnede projeksiyon gürültüsü her bantta iki katına çıkıyor (0-8 m'de 3.8 → 9.3,
+25-40 m'de 11.5 → 24.9 m/s).
+
+Sistem yanlış sayı üretmek yerine hiç üretmemeyi seçiyor. Bu tasarlanan
+davranış, ama sonucu **uyarının en gerekli olduğu koşulda uyarı olmaması.**
+
+Kırılma zinciri ölçümde uçtan uca görünüyor:
+
+```
+ışık azalır → iz sürekliliği bozulur (%23 → %61 delikli)
+            → zemin konumu zıplar (gürültü 2x)
+            → fit kapısı devreye girer
+            → TTC üretilmez
+```
+
+Tespit katmanı hiçbir halkada suçlu değil — aynı klipte medyan güven 0.73.
+Kırılan, onun üstüne kurulan geometri ve zaman katmanları.
+
+Hafta 2'de "takibin kararlılığı projenin en kritik teknik noktası" demiştim.
+Sekiz hafta sonra ölçüm bunu doğruladı ve zincirin tamamını gösterdi.
+
+**Çözüm yönü:** daha gevşek bir eşik değil — o sadece kötü sayıyı geri getirir.
+Gereken daha kararlı bir dayanak noktası; kutunun alt kenarı yerine tekerlek
+teması gibi gürültüye daha az duyarlı bir referans. `v2` listesine yazıldı.
+

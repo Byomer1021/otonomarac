@@ -400,6 +400,26 @@ zeminde çekti, düzlem varsayımı hiç zorlanmadı) ve kuru gece — gece kayd
 zamanda yağmurlu, ışık ile yağmurun etkisi ayrıştırılamıyor. Yağmur ve gece
 kamerası kalibre edilmedi, oradaki kuşbakışı harita ve TTC ölçülmedi.
 
+**Zor koşullarda risk katmanı hiç sayı üretmiyor.** İkinci kamera kalibre
+edildikten sonra tam pipeline altı sahnede de çalışıyor ve en keskin sonuç şu:
+gece otoyolda güzergâh koridorunda altı iz var — kuru şehir klibiyle aynı sayı —
+ama **tek bir çarpışma süresi üretilmiyor**. İzler orada; fit kalitesi kapısı
+hepsini reddediyor ve reddetmekte haklı. O sahnede projeksiyon gürültüsü her
+mesafe bandında kuru gündüzün yaklaşık iki katı (yakında 3.8 → 9.3 m/s, uzakta
+11.5 → 24.9), ve onunla hesaplanacak bir TTC ölçüm kılığına girmiş bir tahmin
+olurdu.
+
+Zincir rakamlarda uçtan uca görünüyor: ışık azalır → iz sürekliliği bozulur
+(delikli iz %23 → %61) → zemin konumu zıplar → fit kapısı devreye girer → TTC
+yok. Tespit katmanı hiçbir halkada suçlu değil; aynı klipte medyan güveni 0.73.
+Kırılan, onun üstüne kurulan geometri ve zaman katmanları.
+
+Dürüst ifadesi bunun hata değil bir **kapsam sınırı** olduğu: bu sistem iyi
+görüş koşullarında çarpışma süresi tahmin edebilir, gece ve yağmurda tespit ve
+takip yapmaya devam eder ama risk tahmini üretmez. Çözümü daha gevşek bir eşik
+değil, daha kararlı bir dayanak noktası — kutunun alt kenarı yerine tekerlek
+teması gibi.
+
 ### Performans
 
 Kare başına, 1280 px genişlik, tespit GTX 1080'de, iki ağır model CPU'da:

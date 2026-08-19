@@ -402,6 +402,26 @@ the flat-plane assumption was never stressed), and dry night — the night foota
 is also wet, so light level and rain cannot be separated. The rain and night
 camera was not calibrated, so its bird's-eye map and TTC are unmeasured.
 
+**In poor conditions the risk layer stops producing a number at all.** With the
+second camera now calibrated, the full pipeline runs on all six scenes, and the
+sharpest result is this: on the night motorway six tracks sit in the ego path
+corridor — the same count as the dry city clip — and **not one time-to-collision
+value is produced**. The tracks exist; the fit-quality gate rejects every one of
+them, and it is right to. Projection noise in that scene runs roughly double the
+dry baseline at every range (3.8 → 9.3 m/s near, 11.5 → 24.9 m/s far), and a TTC
+computed on it would be a guess wearing the costume of a measurement.
+
+The chain is visible end to end in the numbers: light drops → track continuity
+breaks (gapped tracks 23% → 61%) → ground positions jitter → the fit gate
+engages → no TTC. Detection is innocent at every link; median confidence on that
+same clip is 0.73. What breaks is the geometry and timing built on top of it.
+
+Stated honestly, that is a scope boundary rather than a bug: this system can
+estimate time-to-collision in good visibility, and in rain or darkness it keeps
+detecting and tracking but declines to estimate risk. Fixing it needs a steadier
+ground anchor — the wheel contact rather than the box bottom — not a looser
+threshold.
+
 ### Performance
 
 Per frame, 1280 px wide, GTX 1080 for detection and CPU for the two heavy models:

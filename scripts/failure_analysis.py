@@ -46,18 +46,16 @@ BANDS = [(0, 8), (8, 15), (15, 25), (25, 40)]
 #: Bir kutunun ortulu sayilmasi icin daha yakin bir kutuyla asgari ortusme.
 OCCLUSION_IOU = 0.15
 
-#: Sahne tablosu: ad -> (dosya, hood_top, kusbakisi_acik_mi).
-#: hood_top sahneye ozel cunku yagmur kaydi baska bir kadrajdan geliyor -
-#: kaput orada goruntunun yalnizca alt %3'unu kapliyor, Maltepe'de %15.
-#: Kusbakisi ve risk yalnizca kalibrasyonu olculmus kamerada acik; yagmur
-#: kaydinin homografisi cikarilmadi, o yuzden orada tespit ve takip olculuyor.
+#: Sahne tablosu: ad -> (klip, kamera config'i).
+#: Iki farkli kamera var ve her birinin kendi kalibrasyonu; config sahneyle
+#: birlikte secildigi icin hood_top, road_quad ve olcek dogru esleşiyor.
 SCENES = {
-    "kuru sehir": ("data/maltepe_city.mp4", 0.85, True),
-    "kuru kirsal": ("data/maltepe_rural.mp4", 0.85, True),
-    "yagmur yol": ("data/rain_highway.mp4", 0.96, False),
-    "yagmur sis": ("data/rain_fog.mp4", 0.96, False),
-    "gece yol": ("data/night_highway.mp4", 0.96, False),
-    "gece sehir": ("data/night_city.mp4", 0.96, False),
+    "kuru sehir": ("data/maltepe_city.mp4", "configs/maltepe.yaml"),
+    "kuru kirsal": ("data/maltepe_rural.mp4", "configs/maltepe.yaml"),
+    "yagmur yol": ("data/rain_highway.mp4", "configs/istanbul.yaml"),
+    "yagmur sis": ("data/rain_fog.mp4", "configs/istanbul.yaml"),
+    "gece yol": ("data/night_highway.mp4", "configs/istanbul.yaml"),
+    "gece sehir": ("data/night_city.mp4", "configs/istanbul.yaml"),
 }
 
 FUNNEL = [
@@ -140,7 +138,6 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument("--config", type=Path, default=Path("configs/maltepe.yaml"))
     parser.add_argument("--frames", type=int, default=400)
     parser.add_argument(
         "--only", type=str, default=None,
@@ -148,33 +145,31 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    base = Config.load(args.config)
+    base = Config.load("configs/maltepe.yaml")  # yalnizca min_track_len icin
     scenes = {}
     selected = args.only.split(",") if args.only else list(SCENES)
     for label in selected:
         if label not in SCENES:
             raise SystemExit(f"Bilinmeyen sahne: {label}. Secenekler: {', '.join(SCENES)}")
-        name, hood, use_bev = SCENES[label]
+        name, config_path = SCENES[label]
         path = Path(name)
         if not path.is_file():
             print(f"atlaniyor - dosya yok: {path}")
             continue
+        scene_base = Config.load(config_path)
         cfg = Config()
-        cfg.video = replace(base.video, input=str(path), max_frames=args.frames)
-        cfg.camera = replace(
-            base.camera, hood_top=hood,
-            road_quad=base.camera.road_quad if use_bev else None,
-        )
-        cfg.detection = replace(base.detection)
-        cfg.tracking = replace(base.tracking)
+        cfg.video = replace(scene_base.video, input=str(path), max_frames=args.frames)
+        cfg.camera = replace(scene_base.camera)
+        cfg.detection = replace(scene_base.detection)
+        cfg.tracking = replace(scene_base.tracking)
         # Derinlik ve segmentasyon bu analizin sonuclarini etkilemiyor ve
         # CPU'da en pahali iki katman; kapatilinca olcum dakikalar yerine
         # saniyeler suruyor.
-        cfg.depth = replace(base.depth, enabled=False)
-        cfg.segmentation = replace(base.segmentation, enabled=False)
-        cfg.bev = replace(base.bev, enabled=use_bev)
-        cfg.risk = replace(base.risk, enabled=use_bev)
-        cfg.visualize = replace(base.visualize)
+        cfg.depth = replace(scene_base.depth, enabled=False)
+        cfg.segmentation = replace(scene_base.segmentation, enabled=False)
+        cfg.bev = replace(scene_base.bev)
+        cfg.risk = replace(scene_base.risk)
+        cfg.visualize = replace(scene_base.visualize)
         print(f"{label} isleniyor ({path.name}, {args.frames} kare)...", flush=True)
         scenes[label] = analyse(path, cfg, args.frames)
 

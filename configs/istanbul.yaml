@@ -1,0 +1,100 @@
+# Ikinci kamera: yagmur ve gece cekimleri (Istanbul).
+# Kaynak 3840x2160 / 59.94 fps VP9; klipler 1920x1080 / 30 fps H.264.
+#
+# Maltepe kaydindan FARKLI bir kadraj - bu yuzden ayri config. Kaput goruntunun
+# alt %4'unu kapliyor (Maltepe'de %15) ve aci daha dar.
+
+video:
+  input: null
+  output: outputs/istanbul.mp4
+  frame_stride: 1
+  max_frames: null
+  resize_width: 1280
+
+camera:
+  # Izgarayla okundu: yol y=700'e kadar gorunuyor, alti torpido.
+  hood_top: 0.96
+  # Iki gercek yol-paralel serit boyasindan kuruldu:
+  #   sol  x = -1.8109*y + 1534.0  (91 nokta)
+  #   sag  x = +0.9427*y +  206.0  (138 nokta)
+  # Kesisimleri y=482 diyor; arac genisligi olcutu bagimsiz olarak y=480 dedi.
+  # Iki yontem uyustu - Maltepe kalibrasyonunda ayrismislardi (510'a karsi 480).
+  road_quad: [[0.2294, 0.9514], [0.6655, 0.9514], [0.6049, 0.8333], [0.3496, 0.8333]]
+
+detection:
+  model: yolov8s.pt
+  conf: 0.05
+  iou: 0.5
+  imgsz: 640
+  device: auto
+  classes: [0, 1, 2, 3, 5, 7, 9]
+  half: false
+
+tracking:
+  enabled: true
+  track_high_thresh: 0.25
+  track_low_thresh: 0.1
+  new_track_thresh: 0.25
+  track_buffer: 30
+  match_thresh: 0.9
+  fuse_score: true
+  trail_seconds: 1.5
+  min_track_len: 5
+
+depth:
+  enabled: true
+  model: depth-anything/Depth-Anything-V2-Small-hf
+  device: cpu
+  half: false
+  input_width: 518
+  every_n_frames: 3
+  sample_width_ratio: 0.5
+  sample_height_ratio: 0.25
+  show_panel: false
+  colormap: INFERNO
+
+segmentation:
+  enabled: true
+  model: nvidia/segformer-b0-finetuned-cityscapes-1024-1024
+  device: cpu
+  half: false
+  input_width: 768
+  every_n_frames: 5
+  close_kernel: 5
+  show_lane_paint: true
+
+bev:
+  enabled: true
+  # Serit genisligi varsayilmadi, arac genisliginden OLCULDU: 30 karede 58
+  # arac ornegiyle medyan yansitilmis genislik 1.80 m'ye ayarlandi.
+  quad_width_m: 2.98
+  # VARSAYIM - Maltepe'dekiyle ayni gerekce. Boylamsal olcek goruntuden
+  # belirlenemiyor; TTC bundan etkilenmiyor cunku mesafe ve hiz ayni
+  # katsayiyla olcekleniyor.
+  quad_depth_m: 12.0
+  range_ahead_m: 35.0
+  range_side_m: 12.0
+  px_per_m: 12.0
+  grid_step_m: 5.0
+  max_range_m: 40.0
+
+risk:
+  enabled: true
+  min_observations: 5
+  history_seconds: 1.2
+  ttc_critical_s: 2.0
+  ttc_warning_s: 4.0
+  ttc_max_s: 10.0
+  min_closing_speed: 0.5
+  path_half_width_m: 1.7
+  min_distance_m: 2.0
+  min_confidence: 0.35
+  max_fit_residual_ratio: 0.04
+
+visualize:
+  show_conf: true
+  show_class_name: true
+  show_hud: true
+  show_trails: true
+  line_thickness: 2
+  font_scale: 0.5

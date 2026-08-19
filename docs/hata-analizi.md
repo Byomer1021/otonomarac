@@ -227,6 +227,66 @@ Sistemin en kırılgan katmanı bu ölçümde net: **risk katmanı.** Tespit
 
 ---
 
+## 7. İkinci kamera kalibre edildi — risk katmanı zor koşulda susuyor
+
+Yağmur ve gece kaydının kamerası da kalibre edildi (`configs/istanbul.yaml`),
+böylece altı sahnenin hepsinde **tam pipeline** ölçülebiliyor.
+
+Kalibrasyon Maltepe'dekinden daha temiz çıktı: iki şerit boyasının kesişimi
+ufku **y=482**, kalibrasyonda kullanılmayan araç genişliği ölçütü bağımsız
+olarak **y=480** dedi — iki yöntem uyuştu. Doğrulama: medyan yansıtılmış
+genişlik **1.81 m** (hedef 1.80), mesafe korelasyonu **−0.13**.
+
+### Bulgu: uyarı en çok gerektiği yerde üretilmiyor
+
+| Sahne | koridordaki iz | TTC üretilen | delikli iz |
+|---|---|---|---|
+| kuru şehir | 6 | **150 (%55)** | 23% |
+| yağmur, açık yol | 1 | **0** | 42% |
+| yağmur, sisli | 2 | **0** | 25% |
+| **gece, otoyol** | **6** | **0** | **61%** |
+| gece, şehir | 9 | 38 (%43) | 35% |
+
+Gece otoyolda güzergâh koridorunda **kuru şehirle aynı sayıda araç var** — altı
+iz — ama **tek bir TTC üretilmiyor.** İzler orada; hız fitinin kalite kapısı
+hepsini reddediyor.
+
+Reddetmekte haklı. Aynı sahnede projeksiyon gürültüsü her mesafe bandında kuru
+gündüzün yaklaşık iki katı:
+
+| Band | kuru şehir | gece otoyol |
+|---|---|---|
+| 0-8 m | 3.8 m/s | **9.3** |
+| 8-15 m | 5.5 | **13.6** |
+| 15-25 m | 7.5 | **12.5** |
+| 25-40 m | 11.5 | **24.9** |
+
+O gürültüyle üretilecek bir TTC ölçüm değil tahmin olurdu.
+
+### Bunun anlamı
+
+Sistem **yanlış sayı üretmek yerine hiç üretmemeyi** seçiyor ve bu tasarlanan
+davranış. Ama sonucu şu: **çarpışma uyarısının en çok gerektiği koşullarda
+uyarı yok.**
+
+Bu bir hata değil, bir **kapsam sınırı**. Dürüst ifadesi şudur: bu sistem iyi
+görüş koşullarında çarpışma süresi tahmin edebilir; gece ve yağmurda tespit ve
+takip yapmaya devam eder ama risk tahmini üretmez.
+
+Kırılma zinciri ölçümde net görünüyor:
+
+```
+ışık/görüş azalır → iz sürekliliği bozulur (delikli iz %23 → %61)
+                  → zemin konumu zıplar (gürültü iki katına çıkar)
+                  → fit kalitesi kapısı devreye girer
+                  → TTC üretilmez
+```
+
+Tespit katmanı bu zincirin hiçbir halkasında suçlu değil — gece otoyolda medyan
+güveni 0.73. Kırılan, onun üstüne kurulan **geometri ve zaman** katmanları.
+
+---
+
 ## Bilinen ve çözülmemiş kısıtlar
 
 - **Boylamsal ölçek belirsiz.** Yanal ölçek araç genişliğiyle kalibre edildi
@@ -247,9 +307,11 @@ Sistemin en kırılgan katmanı bu ölçümde net: **risk katmanı.** Tespit
 - **Gece ve yağmur ayrıştırılamadı.** Gece kaydı aynı zamanda yağmurlu; iki
   koşulun etkisi ayrı ayrı ölçülemedi. Kuru bir gece kaydı bunu çözer.
 
-- **Yağmur kaydında kuşbakışı ölçülmedi.** O kamera kalibre edilmedi; taşınan
-  yalnızca tespit ve takip metrikleri. Homografi çıkarılırsa harita ve TTC de
-  karşılaştırılabilir.
+- **Zor koşulda TTC üretilmiyor.** Bölüm 7'deki tablo bunu ölçüyor. Sistem
+  yanlış sayı üretmemeyi seçiyor, ama pratikte uyarının en gerekli olduğu yerde
+  uyarı yok demek. Çözümü daha iyi bir eşik değil, daha kararlı bir zemin konumu
+  — muhtemelen kutunun alt kenarı yerine tekerlek teması gibi daha güvenilir bir
+  dayanak noktası.
 
 - **Yol düzlem varsayılıyor.** Homografi eğim ve tümsekte bozulur. Maltepe
   çekiminde belirgin eğim yok, yani bu kısıt **test edilmedi** — çalışmadığı
